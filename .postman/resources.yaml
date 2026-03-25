@@ -1,0 +1,13 @@
+# Use this workspace to collaborate
+workspace:
+  id: 210d4d18-f31f-4a13-8fef-a12c536f7a4d
+
+localResources:
+  specs:
+    - ..\docs\api.yaml
+
+# Each entry here maps a local resource to one or more corresponding objects in Postman Cloud
+cloudResources:
+  collections:
+    ..\postman\collections\智能个人财务记账系统 API: dbfa3a6d-6bed-4c08-8ad8-4f4599e2016f
+    ..\postman\collections\个人财务记账系统 API 测试: ea313453-7a45-480d-ae7b-fc8a6df01a52

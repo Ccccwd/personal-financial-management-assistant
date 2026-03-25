@@ -4,7 +4,12 @@
       "Bash(uv venv:*)",
       "Bash(uv sync:*)",
       "Bash(uv add:*)",
-      "Bash(uv run:*)"
+      "Bash(uv run:*)",
+      "Bash(python -m json.tool)",
+      "Bash(curl -s -X POST \"http://localhost:8000/api/auth/register\" -H \"Content-Type: application/json\" -d '{\"\"\"\"username\"\"\"\": \"\"\"\"testuser\"\"\"\", \"\"\"\"email\"\"\"\": \"\"\"\"test@example.com\"\"\"\", \"\"\"\"password\"\"\"\": \"\"\"\"test123456\"\"\"\"}')",
+      "Bash(curl:*)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjIsImV4cCI6MTc3NDQxMzA2NH0.YYDtLEfVKi9DkoRaaOZkSZKW4xQVH1tB0dHEIpyPsJE\")",
+      "Bash(__NEW_LINE_2a1f9fa3d3f89dd2__ curl:*)"
     ]
   }
 }
