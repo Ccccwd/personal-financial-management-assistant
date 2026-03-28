@@ -11,3 +11,4 @@ cloudResources:
   collections:
     ..\postman\collections\智能个人财务记账系统 API: dbfa3a6d-6bed-4c08-8ad8-4f4599e2016f
     ..\postman\collections\个人财务记账系统 API 测试: ea313453-7a45-480d-ae7b-fc8a6df01a52
+    ..\postman\collections\财务记账 API 测试: d16c089f-6cbf-4c0a-8ad2-2af15a54ba8c

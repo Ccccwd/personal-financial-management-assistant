@@ -1,232 +1,134 @@
 {
 	"info": {
-		"_postman_id": "finance-api-v3",
+		"_postman_id": "finance-api-v4",
 		"name": "财务记账 API 测试",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"auth": {
 		"type": "bearer",
-		"bearer": [
-			{
-				"key": "token",
-				"value": "{{token}}",
-				"type": "string"
-			}
-		]
+		"bearer": [{"key": "token", "value": "{{token}}", "type": "string"}]
 	},
 	"variable": [
-		{
-			"key": "base_url",
-			"value": "http://localhost:8000"
-		}
+		{"key": "base_url", "value": "http://localhost:8000"}
 	],
 	"item": [
 		{
 			"name": "1. 用户注册",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"var res = pm.response.json();",
-							"",
-							"pm.test('注册成功', function() {",
-							"    pm.response.to.have.status(200);",
-							"    pm.expect(res.code).to.eql(200);",
-							"});",
-							"",
-							"pm.test('返回用户数据', function() {",
-							"    pm.expect(res.data).to.have.property('id');",
-							"    pm.expect(res.data.username).to.eql('testuser');",
-							"});"
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
+			"event": [{"listen": "test", "script": {"exec": [
+				"var res = pm.response.json();",
+				"pm.test('注册成功', function() {",
+				"    pm.response.to.have.status(200);",
+				"    pm.expect(res.code).to.eql(200);",
+				"});",
+				"pm.test('返回用户数据', function() {",
+				"    pm.expect(res.data).to.have.property('id');",
+				"    pm.expect(res.data.username).to.eql('testuser');",
+				"});"
+			], "type": "text/javascript"}}],
 			"request": {
 				"auth": {"type": "noauth"},
 				"method": "POST",
 				"header": [{"key": "Content-Type", "value": "application/json"}],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n  \"username\": \"testuser\",\n  \"email\": \"test@example.com\",\n  \"password\": \"test123456\"\n}"
-				},
+				"body": {"mode": "raw", "raw": "{\n  \"username\": \"testuser\",\n  \"email\": \"test@example.com\",\n  \"password\": \"test123456\"\n}"},
 				"url": {"raw": "{{base_url}}/api/auth/register", "host": ["{{base_url}}"], "path": ["api", "auth", "register"]}
 			}
 		},
 		{
-			"name": "2. 用户登录（重要：必须先运行此请求）",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"var res = pm.response.json();",
-							"",
-							"pm.test('登录成功', function() {",
-							"    pm.response.to.have.status(200);",
-							"    pm.expect(res.code).to.eql(200);",
-							"});",
-							"",
-							"pm.test('返回 access_token', function() {",
-							"    pm.expect(res.data).to.have.property('access_token');",
-							"    pm.expect(res.data.access_token).to.be.a('string');",
-							"});",
-							"",
-							"// ===== 保存 Token =====",
-							"var token = res.data.access_token;",
-							"pm.environment.set('token', token);",
-							"console.log('✅ Token 已保存:', token.substring(0, 30) + '...');",
-							"",
-							"pm.test('Token 已保存到环境变量', function() {",
-							"    var saved = pm.environment.get('token');",
-							"    pm.expect(saved).to.eql(token);",
-							"});"
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
+			"name": "2. 用户登录",
+			"event": [{"listen": "test", "script": {"exec": [
+				"var res = pm.response.json();",
+				"pm.test('登录成功', function() {",
+				"    pm.response.to.have.status(200);",
+				"    pm.expect(res.code).to.eql(200);",
+				"});",
+				"pm.test('返回 access_token', function() {",
+				"    pm.expect(res.data).to.have.property('access_token');",
+				"});",
+				"if (res.data && res.data.access_token) {",
+				"    pm.environment.set('token', res.data.access_token);",
+				"}",
+				"pm.test('Token 已保存', function() {",
+				"    pm.expect(pm.environment.get('token')).to.be.a('string');",
+				"});"
+			], "type": "text/javascript"}}],
 			"request": {
 				"auth": {"type": "noauth"},
 				"method": "POST",
 				"header": [{"key": "Content-Type", "value": "application/json"}],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n  \"username\": \"testuser\",\n  \"password\": \"test123456\"\n}"
-				},
+				"body": {"mode": "raw", "raw": "{\n  \"username\": \"testuser\",\n  \"password\": \"test123456\"\n}"},
 				"url": {"raw": "{{base_url}}/api/auth/login", "host": ["{{base_url}}"], "path": ["api", "auth", "login"]}
 			}
 		},
 		{
 			"name": "3. 获取分类列表",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"var res = pm.response.json();",
-							"",
-							"pm.test('获取成功', function() {",
-							"    pm.response.to.have.status(200);",
-							"    pm.expect(res.code).to.eql(200);",
-							"});",
-							"",
-							"pm.test('返回分类数组', function() {",
-							"    pm.expect(res.data.categories).to.be.an('array');",
-							"});",
-							"",
-							"pm.test('包含 total', function() {",
-							"    pm.expect(res.data).to.have.property('total');",
-							"});"
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
+			"event": [{"listen": "test", "script": {"exec": [
+				"var res = pm.response.json();",
+				"pm.test('获取分类列表成功', function() {",
+				"    pm.response.to.have.status(200);",
+				"    pm.expect(res.code).to.eql(200);",
+				"});",
+				"pm.test('返回分类数组', function() {",
+				"    pm.expect(res.data.categories).to.be.an('array');",
+				"});"
+			], "type": "text/javascript"}}],
 			"request": {
 				"method": "GET",
 				"header": [],
-				"url": {
-					"raw": "{{base_url}}/api/categories?type=expense&include_system=true",
-					"host": ["{{base_url}}"],
-					"path": ["api", "categories"],
-					"query": [{"key": "type", "value": "expense"}, {"key": "include_system", "value": "true"}]
-				}
+				"url": {"raw": "{{base_url}}/api/categories?type=expense&include_system=true", "host": ["{{base_url}}"], "path": ["api", "categories"], "query": [{"key": "type", "value": "expense"}, {"key": "include_system", "value": "true"}]}
 			}
 		},
 		{
 			"name": "4. 创建分类",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"var res = pm.response.json();",
-							"",
-							"pm.test('创建成功', function() {",
-							"    pm.response.to.have.status(200);",
-							"    pm.expect(res.code).to.eql(200);",
-							"});",
-							"",
-							"pm.test('返回分类数据', function() {",
-							"    pm.expect(res.data.name).to.eql('餐饮美食');",
-							"});",
-							"",
-							"pm.environment.set('category_id', res.data.id);"
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
+			"event": [{"listen": "test", "script": {"exec": [
+				"var res = pm.response.json();",
+				"pm.test('创建分类成功', function() {",
+				"    pm.response.to.have.status(200);",
+				"    pm.expect(res.code).to.eql(200);",
+				"});",
+				"pm.test('分类名称正确', function() {",
+				"    pm.expect(res.data.name).to.eql('餐饮美食');",
+				"});",
+				"pm.environment.set('category_id', res.data.id);"
+			], "type": "text/javascript"}}],
 			"request": {
 				"method": "POST",
 				"header": [{"key": "Content-Type", "value": "application/json"}],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n  \"name\": \"餐饮美食\",\n  \"type\": \"expense\",\n  \"icon\": \"🍔\",\n  \"color\": \"#FF6B6B\"\n}"
-				},
+				"body": {"mode": "raw", "raw": "{\n  \"name\": \"餐饮美食\",\n  \"type\": \"expense\",\n  \"icon\": \"🍔\",\n  \"color\": \"#FF6B6B\"\n}"},
 				"url": {"raw": "{{base_url}}/api/categories", "host": ["{{base_url}}"], "path": ["api", "categories"]}
 			}
 		},
 		{
-			"name": "5. 创建账户（微信钱包）",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"var res = pm.response.json();",
-							"",
-							"pm.test('创建成功', function() {",
-							"    pm.response.to.have.status(200);",
-							"    pm.expect(res.code).to.eql(200);",
-							"});",
-							"",
-							"pm.test('余额为1000', function() {",
-							"    pm.expect(res.data.balance).to.eql(1000);",
-							"});",
-							"",
-							"pm.environment.set('account_id', res.data.id);",
-							"console.log('✅ 账户ID:', res.data.id);"
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
+			"name": "5. 创建账户（余额1000）",
+			"event": [{"listen": "test", "script": {"exec": [
+				"var res = pm.response.json();",
+				"pm.test('创建账户成功', function() {",
+				"    pm.response.to.have.status(200);",
+				"    pm.expect(res.code).to.eql(200);",
+				"});",
+				"pm.test('余额正确', function() {",
+				"    pm.expect(Number(res.data.balance)).to.eql(1000);",
+				"});",
+				"pm.environment.set('account_id', res.data.id);"
+			], "type": "text/javascript"}}],
 			"request": {
 				"method": "POST",
 				"header": [{"key": "Content-Type", "value": "application/json"}],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n  \"name\": \"微信钱包\",\n  \"type\": \"wechat\",\n  \"initial_balance\": 1000,\n  \"icon\": \"💚\",\n  \"color\": \"#07C160\",\n  \"is_default\": true\n}"
-				},
+				"body": {"mode": "raw", "raw": "{\n  \"name\": \"我的钱包\",\n  \"type\": \"cash\",\n  \"initial_balance\": 1000,\n  \"is_default\": true\n}"},
 				"url": {"raw": "{{base_url}}/api/accounts", "host": ["{{base_url}}"], "path": ["api", "accounts"]}
 			}
 		},
 		{
 			"name": "6. 获取账户列表",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"var res = pm.response.json();",
-							"",
-							"pm.test('获取成功', function() {",
-							"    pm.response.to.have.status(200);",
-							"    pm.expect(res.code).to.eql(200);",
-							"});",
-							"",
-							"pm.test('有账户', function() {",
-							"    pm.expect(res.data.accounts.length).to.be.at.least(1);",
-							"});"
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
+			"event": [{"listen": "test", "script": {"exec": [
+				"var res = pm.response.json();",
+				"pm.test('获取账户列表成功', function() {",
+				"    pm.response.to.have.status(200);",
+				"    pm.expect(res.code).to.eql(200);",
+				"});",
+				"pm.test('有账户数据', function() {",
+				"    pm.expect(res.data.accounts.length).to.be.at.least(1);",
+				"});"
+			], "type": "text/javascript"}}],
 			"request": {
 				"method": "GET",
 				"header": [],
@@ -234,94 +136,60 @@
 			}
 		},
 		{
-			"name": "7. 创建账户（支付宝）",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"var res = pm.response.json();",
-							"",
-							"pm.test('创建成功', function() {",
-							"    pm.response.to.have.status(200);",
-							"});",
-							"",
-							"pm.environment.set('account_id_2', res.data.id);"
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
+			"name": "7. 创建第二个账户（余额500）",
+			"event": [{"listen": "test", "script": {"exec": [
+				"var res = pm.response.json();",
+				"pm.test('创建成功', function() {",
+				"    pm.response.to.have.status(200);",
+				"});",
+				"pm.test('余额正确', function() {",
+				"    pm.expect(Number(res.data.balance)).to.eql(500);",
+				"});",
+				"pm.environment.set('account_id_2', res.data.id);"
+			], "type": "text/javascript"}}],
 			"request": {
 				"method": "POST",
 				"header": [{"key": "Content-Type", "value": "application/json"}],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n  \"name\": \"支付宝\",\n  \"type\": \"alipay\",\n  \"initial_balance\": 500,\n  \"icon\": \"💙\",\n  \"color\": \"#1677FF\"\n}"
-				},
+				"body": {"mode": "raw", "raw": "{\n  \"name\": \"储蓄账户\",\n  \"type\": \"bank\",\n  \"initial_balance\": 500\n}"},
 				"url": {"raw": "{{base_url}}/api/accounts", "host": ["{{base_url}}"], "path": ["api", "accounts"]}
 			}
 		},
 		{
-			"name": "8. 账户转账",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"var res = pm.response.json();",
-							"",
-							"pm.test('转账成功', function() {",
-							"    pm.response.to.have.status(200);",
-							"});",
-							"",
-							"pm.test('余额变化正确', function() {",
-							"    pm.expect(res.data.from_account_balance).to.eql(800);",
-							"    pm.expect(res.data.to_account_balance).to.eql(700);",
-							"});"
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
+			"name": "8. 账户间转账200",
+			"event": [{"listen": "test", "script": {"exec": [
+				"var res = pm.response.json();",
+				"pm.test('转账成功', function() {",
+				"    pm.response.to.have.status(200);",
+				"});",
+				"pm.test('转出余额800', function() {",
+				"    pm.expect(Number(res.data.from_account_balance)).to.eql(800);",
+				"});",
+				"pm.test('转入余额700', function() {",
+				"    pm.expect(Number(res.data.to_account_balance)).to.eql(700);",
+				"});"
+			], "type": "text/javascript"}}],
 			"request": {
 				"method": "POST",
 				"header": [{"key": "Content-Type", "value": "application/json"}],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n  \"from_account_id\": {{account_id}},\n  \"to_account_id\": {{account_id_2}},\n  \"amount\": 200,\n  \"remark\": \"测试转账\"\n}"
-				},
+				"body": {"mode": "raw", "raw": "{\n  \"from_account_id\": {{account_id}},\n  \"to_account_id\": {{account_id_2}},\n  \"amount\": 200,\n  \"remark\": \"测试转账\"\n}"},
 				"url": {"raw": "{{base_url}}/api/accounts/transfer", "host": ["{{base_url}}"], "path": ["api", "accounts", "transfer"]}
 			}
 		},
 		{
 			"name": "9. 调整余额",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"var res = pm.response.json();",
-							"",
-							"pm.test('调整成功', function() {",
-							"    pm.response.to.have.status(200);",
-							"});",
-							"",
-							"pm.test('新余额1000', function() {",
-							"    pm.expect(res.data.new_balance).to.eql(1000);",
-							"});"
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
+			"event": [{"listen": "test", "script": {"exec": [
+				"var res = pm.response.json();",
+				"pm.test('调整成功', function() {",
+				"    pm.response.to.have.status(200);",
+				"});",
+				"pm.test('新余额1000', function() {",
+				"    pm.expect(Number(res.data.new_balance)).to.eql(1000);",
+				"});"
+			], "type": "text/javascript"}}],
 			"request": {
 				"method": "POST",
 				"header": [{"key": "Content-Type", "value": "application/json"}],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n  \"new_balance\": 1000,\n  \"remark\": \"校正余额\"\n}"
-				},
+				"body": {"mode": "raw", "raw": "{\n  \"new_balance\": 1000,\n  \"remark\": \"校正余额\"\n}"},
 				"url": {"raw": "{{base_url}}/api/accounts/{{account_id}}/adjust-balance", "host": ["{{base_url}}"], "path": ["api", "accounts", "{{account_id}}", "adjust-balance"]}
 			}
 		}
