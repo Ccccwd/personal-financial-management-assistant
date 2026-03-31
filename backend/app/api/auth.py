@@ -60,9 +60,9 @@ async def login(login_data: UserLogin, db: Session = Depends(get_db)):
     if not user.is_active:
         return Response(code=403, message="账户已被禁用", data=None)
 
-    # 生成 Token
+    # 生成 Token（JWT 规范要求 sub 必须为字符串）
     access_token = create_access_token(
-        data={"sub": user.id},
+        data={"sub": str(user.id)},
         expires_delta=timedelta(minutes=settings.access_token_expire_minutes)
     )
 
