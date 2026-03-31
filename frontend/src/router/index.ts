@@ -34,6 +34,12 @@ const routes: Array<RouteRecordRaw> = [
     meta: { guest: true }
   },
   {
+    path: '/register',
+    name: 'Register',
+    component: () => import('@/views/auth/Register.vue'),
+    meta: { guest: true }
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/dashboard'
   }
@@ -48,10 +54,11 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const token = TokenManager.getAccessToken()
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
+  const isGuestRoute = to.matched.some(record => record.meta.guest)
 
   if (requiresAuth && !token) {
     next('/login')
-  } else if (to.path === '/login' && token) {
+  } else if (isGuestRoute && token) {
     next('/')
   } else {
     next()
