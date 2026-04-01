@@ -2,12 +2,15 @@ import request from '@/utils/request'
 import {
   Account,
   AccountCreate,
+  AccountDetail,
+  AccountListPayload,
+  AdjustBalanceResponse,
   AccountUpdate,
   AccountSummary,
+  BalanceHistoryItem,
   TransferRequest,
   AdjustBalanceRequest,
-  Transaction,
-  APIResponse
+  TransferResponse
 } from '@/types/index'
 
 /**
@@ -18,7 +21,7 @@ export function getAccounts(params?: {
   type?: string
   is_enabled?: boolean
 }) {
-  return request.get<Account[]>('/accounts', { params })
+  return request.get<AccountListPayload>('/accounts', { params })
 }
 
 /**
@@ -40,7 +43,7 @@ export function getDefaultAccount() {
  * @param id 账户ID
  */
 export function getAccount(id: number) {
-  return request.get<Account>(`/accounts/${id}`)
+  return request.get<AccountDetail>(`/accounts/${id}`)
 }
 
 /**
@@ -73,12 +76,7 @@ export function deleteAccount(id: number) {
  * @param data 转账数据
  */
 export function transfer(data: TransferRequest) {
-  return request.post<{
-    from_transaction: Transaction
-    to_transaction: Transaction
-    from_account_balance: number
-    to_account_balance: number
-  }>('/accounts/transfer', data)
+  return request.post<TransferResponse>('/accounts/transfer', data)
 }
 
 /**
@@ -87,10 +85,7 @@ export function transfer(data: TransferRequest) {
  * @param data 调整数据
  */
 export function adjustBalance(id: number, data: AdjustBalanceRequest) {
-  return request.post<{
-    transaction: Transaction
-    current_balance: number
-  }>(`/accounts/${id}/adjust-balance`, data)
+  return request.post<AdjustBalanceResponse>(`/accounts/${id}/adjust-balance`, data)
 }
 
 /**
@@ -103,7 +98,7 @@ export function getAccountBalanceHistory(id: number, params?: {
   offset?: number
   change_type?: string
 }) {
-  return request.get<any[]>(`/accounts/${id}/balance-history`, { params })
+  return request.get<BalanceHistoryItem[]>(`/accounts/${id}/balance-history`, { params })
 }
 
 /**
@@ -115,5 +110,5 @@ export function getAllBalanceHistory(params?: {
   offset?: number
   change_type?: string
 }) {
-  return request.get<any[]>('/balance-history', { params })
+  return request.get<BalanceHistoryItem[]>('/balance-history', { params })
 }

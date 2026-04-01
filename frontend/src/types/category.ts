@@ -7,7 +7,7 @@ export interface Category extends BaseEntity {
   type: CategoryType
   icon?: string
   color?: string
-  parent_id?: number
+  parent_id?: number | null
   sort_order: number
   is_system: boolean
   children?: Category[]
@@ -18,7 +18,7 @@ export interface CategoryCreate {
   type: CategoryType
   icon?: string
   color?: string
-  parent_id?: number
+  parent_id?: number | null
   sort_order?: number
 }
 
@@ -26,6 +26,11 @@ export interface CategoryUpdate extends Partial<CategoryCreate> {}
 
 export interface CategoryStat extends Category {
   amount: number
-  percent: number
+  percentage: number
   transaction_count: number
+}
+
+export interface CategoryListPayload {
+  categories: Category[]
+  total: number
 }

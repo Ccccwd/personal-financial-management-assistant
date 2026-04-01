@@ -2,9 +2,9 @@ import request from '@/utils/request'
 import {
   Category,
   CategoryCreate,
+  CategoryListPayload,
   CategoryUpdate,
   CategoryStat,
-  APIResponse
 } from '@/types/index'
 
 /**
@@ -16,7 +16,7 @@ export function getCategories(params?: {
   include_system?: boolean
   parent_id?: number
 }) {
-  return request.get<Category[]>('/categories', { params })
+  return request.get<CategoryListPayload>('/categories', { params })
 }
 
 /**

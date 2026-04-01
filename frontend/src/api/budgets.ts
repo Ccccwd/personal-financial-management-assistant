@@ -2,9 +2,9 @@ import request from '@/utils/request'
 import {
   Budget,
   BudgetCreate,
+  BudgetListPayload,
   BudgetUpdate,
-  BudgetQuery,
-  APIResponse
+  BudgetQuery
 } from '@/types/index'
 
 /**
@@ -12,7 +12,7 @@ import {
  * @param params 查询参数
  */
 export function getBudgets(params: BudgetQuery) {
-  return request.get<Budget[]>('/budgets', { params })
+  return request.get<BudgetListPayload>('/budgets', { params })
 }
 
 /**

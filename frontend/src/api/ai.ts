@@ -1,11 +1,11 @@
 import request from '@/utils/request'
 import {
   AIClassifyItem,
-  AIClassifyResult,
-  AIAdviceRecord,
+  AIClassifyResponse,
+  AIAdviceHistoryPayload,
+  AIAdviceResponse,
   AIUsage,
-  PaginatedResponse,
-  APIResponse
+  ReclassifyResponse
 } from '@/types/index'
 
 /**
@@ -13,10 +13,7 @@ import {
  * @param items 待分类条目列表
  */
 export function aiClassify(items: AIClassifyItem[]) {
-  return request.post<{
-    items: AIClassifyResult[]
-    llm_called_count: number
-  }>('/ai/classify', { items })
+  return request.post<AIClassifyResponse>('/ai/classify', { items })
 }
 
 /**
@@ -25,13 +22,9 @@ export function aiClassify(items: AIClassifyItem[]) {
  * @param dryRun 是否仅预览
  */
 export function reclassifyTransaction(transactionId: number, dryRun: boolean = false) {
-  return request.post<{
-    transaction_id: number
-    old_category_id: number
-    new_category_id: number
-    new_category_name: string
-    confidence: number
-  }>(`/ai/reclassify/${transactionId}`, { params: { dry_run: dryRun } })
+  return request.post<ReclassifyResponse>(`/ai/reclassify/${transactionId}`, null, {
+    params: { dry_run: dryRun }
+  })
 }
 
 /**
@@ -42,7 +35,7 @@ export function getAIAdvice(params?: {
   months?: number
   force_refresh?: boolean
 }) {
-  return request.get<AIAdviceRecord>('/ai/advice', { params })
+  return request.get<AIAdviceResponse>('/ai/advice', { params })
 }
 
 /**
@@ -53,7 +46,7 @@ export function getAIAdviceHistory(params?: {
   page?: number
   page_size?: number
 }) {
-  return request.get<PaginatedResponse<AIAdviceRecord>>('/ai/advice/history', { params })
+  return request.get<AIAdviceHistoryPayload>('/ai/advice/history', { params })
 }
 
 /**
@@ -61,7 +54,7 @@ export function getAIAdviceHistory(params?: {
  * @param recordId 记录ID
  */
 export function getAIAdviceDetail(recordId: number) {
-  return request.get<AIAdviceRecord>(`/ai/advice/history/${recordId}`)
+  return request.get<AIAdviceResponse>(`/ai/advice/history/${recordId}`)
 }
 
 /**

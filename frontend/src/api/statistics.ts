@@ -1,10 +1,10 @@
 import request from '@/utils/request'
 import {
+  CategoryStatisticsResponse,
+  ExportExcelResponse,
   StatisticsOverview,
-  TrendDataPoint,
-  CategoryStatItem,
-  ExportRequest,
-  APIResponse
+  TrendResponse,
+  ExportRequest
 } from '@/types/index'
 
 /**
@@ -27,7 +27,7 @@ export function getTrendData(params?: {
   start_date?: string
   end_date?: string
 }) {
-  return request.get<TrendDataPoint[]>('/statistics/trend', { params })
+  return request.get<TrendResponse>('/statistics/trend', { params })
 }
 
 /**
@@ -40,7 +40,7 @@ export function getCategoryStatistics(params: {
   year: number
   month?: number
 }) {
-  return request.get<CategoryStatItem[]>('/statistics/category', { params })
+  return request.get<CategoryStatisticsResponse>('/statistics/category', { params })
 }
 
 /**
@@ -48,9 +48,5 @@ export function getCategoryStatistics(params: {
  * @param params 导出参数
  */
 export function exportExcel(params: ExportRequest) {
-  return request.get<{
-    file_path: string
-    file_name: string
-    download_url: string
-  }>('/statistics/export/excel', { params })
+  return request.get<ExportExcelResponse>('/statistics/export/excel', { params })
 }

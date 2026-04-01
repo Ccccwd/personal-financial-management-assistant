@@ -2,11 +2,10 @@ import request from '@/utils/request'
 import {
   Transaction,
   TransactionCreate,
+  TransactionListPayload,
   TransactionUpdate,
   TransactionQuery,
-  TransactionSummary,
-  PaginatedResponse,
-  APIResponse
+  TransactionSummary
 } from '@/types/index'
 
 /**
@@ -14,7 +13,7 @@ import {
  * @param params 查询参数
  */
 export function getTransactions(params?: TransactionQuery) {
-  return request.get<PaginatedResponse<Transaction>>('/transactions', { params })
+  return request.get<TransactionListPayload>('/transactions', { params })
 }
 
 /**
@@ -27,6 +26,18 @@ export function getTransactionSummary(params?: {
   type?: string
 }) {
   return request.get<TransactionSummary>('/transactions/summary', { params })
+}
+
+/**
+ * 获取交易统计摘要（文档别名）
+ * @param params 查询参数
+ */
+export function getTransactionStatistics(params?: {
+  start_date?: string
+  end_date?: string
+  type?: string
+}) {
+  return request.get<TransactionSummary>('/transactions/statistics', { params })
 }
 
 /**
@@ -78,5 +89,5 @@ export function deleteTransaction(id: number) {
  * @param id 交易ID
  */
 export function markTransactionRepeated(id: number) {
-  return request.post<{ success: boolean }>(`/transactions/${id}/mark-repeated`)
+  return request.post<{ message?: string }>(`/transactions/${id}/mark-repeated`)
 }
