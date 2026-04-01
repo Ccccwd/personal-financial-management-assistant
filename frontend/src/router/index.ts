@@ -14,17 +14,49 @@ const routes: Array<RouteRecordRaw> = [
         name: 'Dashboard',
         component: () => import('@/views/home/Dashboard.vue'),
         meta: { title: '仪表盘' }
-      }
-      /* 
-      // Temporarily removed other pages as requested
+      },
       {
         path: 'transactions',
         name: 'Transactions',
         component: () => import('@/views/transaction/TransactionList.vue'),
         meta: { title: '交易记录' }
       },
-      ...
-      */
+      {
+        path: 'transactions/add',
+        name: 'TransactionAdd',
+        component: () => import('@/views/transaction/TransactionAdd.vue'),
+        meta: { title: '新增交易' }
+      },
+      {
+        path: 'accounts',
+        name: 'Accounts',
+        component: () => import('@/views/account/AccountList.vue'),
+        meta: { title: '账户管理' }
+      },
+      {
+        path: 'budgets',
+        name: 'Budgets',
+        component: () => import('@/views/budget/BudgetList.vue'),
+        meta: { title: '预算管理' }
+      },
+      {
+        path: 'statistics',
+        name: 'Statistics',
+        component: () => import('@/views/statistics/Statistics.vue'),
+        meta: { title: '统计分析' }
+      },
+      {
+        path: 'import',
+        name: 'Import',
+        component: () => import('@/views/import/ImportData.vue'),
+        meta: { title: '数据导入' }
+      },
+      {
+        path: 'settings',
+        name: 'Settings',
+        component: () => import('@/views/settings/Profile.vue'),
+        meta: { title: '个人设置' }
+      }
     ]
   },
   {
@@ -40,8 +72,15 @@ const routes: Array<RouteRecordRaw> = [
     meta: { guest: true }
   },
   {
+    path: '/forgot-password',
+    name: 'ForgotPassword',
+    component: () => import('@/views/auth/ForgotPassword.vue'),
+    meta: { guest: true }
+  },
+  {
     path: '/:pathMatch(.*)*',
-    redirect: '/dashboard'
+    name: 'NotFound',
+    component: () => import('@/views/NotFound.vue')
   }
 ]
 
