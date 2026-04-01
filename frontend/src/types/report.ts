@@ -20,3 +20,15 @@ export interface ReportYearly {
   monthly_trend: any[]
   top_expense_categories: any[]
 }
+
+export interface CategoryReport {
+  category_id: number
+  days: number
+  [key: string]: unknown
+}
+
+export interface MonthlyAutoReportResponse {
+  success?: boolean
+  task_id?: string
+  message?: string
+}

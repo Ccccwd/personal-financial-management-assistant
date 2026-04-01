@@ -1,28 +1,20 @@
-export interface APIResponse<T = any> {
+export interface APIResponse<T = unknown> {
   code: number
   message: string
-  data?: T
-  success: boolean
+  data: T
 }
 
-export interface PaginationInfo {
-  page: number
-  pageSize: number
-  total: number
-  totalPages: number
+export interface ErrorItem {
+  field?: string
+  message?: string
+  type?: string
 }
 
-export interface PaginatedResponse<T = any> extends APIResponse<T[]> {
-  pagination: PaginationInfo
-}
-
-export interface ErrorResponse extends APIResponse {
-  success: false
-  error?: {
-    field?: string
-    message?: string
-    type?: string
-  }[]
+export interface ErrorResponse {
+  code: number
+  message: string
+  data: null
+  error?: ErrorItem[]
 }
 
 export interface BaseEntity {

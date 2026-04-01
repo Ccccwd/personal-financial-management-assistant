@@ -3,7 +3,6 @@ import { BaseEntity } from './common'
 export type AccountType = 'cash' | 'bank' | 'wechat' | 'alipay' | 'meal_card' | 'other'
 
 export interface Account extends BaseEntity {
-  user_id: number
   name: string
   type: AccountType
   balance: number
@@ -13,8 +12,8 @@ export interface Account extends BaseEntity {
   is_default: boolean
   is_enabled: boolean
   description?: string
-  expense_total?: number // For account details with stats
-  income_total?: number  // For account details with stats
+  expense_total?: number
+  income_total?: number
 }
 
 export interface AccountCreate {
@@ -35,7 +34,7 @@ export interface TransferRequest {
   from_account_id: number
   to_account_id: number
   amount: number
-  transaction_date: string
+  transaction_date?: string
   remark?: string
 }
 
@@ -45,8 +44,46 @@ export interface AdjustBalanceRequest {
 }
 
 export interface AccountSummary {
-  total_assets: number
-  total_liability: number // if negative balance is allowed
-  net_assets: number
-  account_count: number
+  total_balance: number
+  total_accounts: number
+  account_distribution: Array<{
+    type: string
+    balance: number
+    count: number
+  }>
+}
+
+export interface AccountListPayload {
+  accounts: Account[]
+  total: number
+}
+
+export interface AccountDetail extends Account {
+  expense_total?: number
+  income_total?: number
+}
+
+export interface TransferResponse {
+  from_transaction: import('./transaction').Transaction
+  to_transaction: import('./transaction').Transaction
+  from_account_balance: number
+  to_account_balance: number
+}
+
+export interface AdjustBalanceResponse {
+  transaction: import('./transaction').Transaction
+  current_balance: number
+}
+
+export interface BalanceHistoryItem {
+  id: number
+  account_id: number
+  transaction_id?: number
+  account_name?: string
+  change_type: string
+  amount_before: number
+  amount_after: number
+  change_amount: number
+  description?: string
+  created_at: string
 }

@@ -1,8 +1,9 @@
 import request from '@/utils/request'
 import {
+  CategoryReport,
+  MonthlyAutoReportResponse,
   ReportMonthly,
-  ReportYearly,
-  APIResponse
+  ReportYearly
 } from '@/types/index'
 
 /**
@@ -28,12 +29,12 @@ export function getYearlyReport(year: number) {
  * @param days 分析天数
  */
 export function getCategoryReport(categoryId: number, days: number = 30) {
-  return request.get<any>(`/reports/category/${categoryId}`, { params: { days } })
+  return request.get<CategoryReport>(`/reports/category/${categoryId}`, { params: { days } })
 }
 
 /**
  * 生成并发送月度自动报告
  */
 export function generateMonthlyAutoReport() {
-  return request.post<{ success: boolean; task_id: string }>('/reports/monthly-auto-report')
+  return request.post<MonthlyAutoReportResponse>('/reports/monthly-auto-report')
 }

@@ -2,9 +2,11 @@ import request from '@/utils/request'
 import {
   ImportPreviewResponse,
   ImportLog,
+  ImportLogsPayload,
   ImportRequest,
-  PaginatedResponse,
-  APIResponse
+  ImportBase64Request,
+  ImportResult,
+  ValidateBillResult
 } from '@/types/index'
 
 /**
@@ -43,13 +45,7 @@ export function importBill(data: ImportRequest) {
     formData.append('default_account_id', data.default_account_id.toString())
   }
 
-  return request.post<{
-    import_log_id: number
-    total_count: number
-    success_count: number
-    fail_count: number
-    ai_classified_count: number
-  }>('/wechat/import', formData, {
+  return request.post<ImportResult>('/wechat/import', formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
     }
@@ -60,19 +56,8 @@ export function importBill(data: ImportRequest) {
  * 导入账单（Base64 编码）
  * @param data 导入数据
  */
-export function importBillBase64(data: {
-  file_content: string
-  skip_duplicates?: boolean
-  ai_classify?: boolean
-  default_account_id?: number
-}) {
-  return request.post<{
-    import_log_id: number
-    total_count: number
-    success_count: number
-    fail_count: number
-    ai_classified_count: number
-  }>('/wechat/import-base64', data)
+export function importBillBase64(data: ImportBase64Request) {
+  return request.post<ImportResult>('/wechat/import-base64', data)
 }
 
 /**
@@ -83,11 +68,7 @@ export function validateBillFile(file: File) {
   const formData = new FormData()
   formData.append('file', file)
 
-  return request.post<{
-    is_valid: boolean
-    message: string
-    file_type?: string
-  }>('/wechat/validate', formData, {
+  return request.post<ValidateBillResult>('/wechat/validate', formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
     }
@@ -102,7 +83,7 @@ export function getImportLogs(params?: {
   page?: number
   page_size?: number
 }) {
-  return request.get<PaginatedResponse<ImportLog>>('/wechat/import-logs', { params })
+  return request.get<ImportLogsPayload>('/wechat/import-logs', { params })
 }
 
 /**
