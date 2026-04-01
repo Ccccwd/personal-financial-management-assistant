@@ -3,20 +3,29 @@ import { BaseEntity } from './common'
 export type BudgetPeriodType = 'monthly' | 'yearly'
 export type BudgetStatus = 'normal' | 'warning' | 'exceeded'
 
+export interface BudgetCategoryInfo {
+  id: number
+  name: string
+  icon?: string
+  color?: string
+}
+
 export interface Budget extends BaseEntity {
-  user_id: number
-  category_id: number | null // null for total budget
-  category_name?: string // For display
+  category_id: number | null
   amount: number
   period_type: BudgetPeriodType
   year: number
   month?: number
   alert_threshold: number
   is_enabled: boolean
-  used_amount: number // Calculated field
-  usage_percent: number // Calculated field
-  remaining_amount: number // Calculated field
-  status: BudgetStatus // Calculated field
+}
+
+export interface BudgetWithProgress extends Budget {
+  category?: BudgetCategoryInfo
+  actual_spending: number
+  remaining: number
+  percentage: number
+  status: BudgetStatus
 }
 
 export interface BudgetCreate {
@@ -26,10 +35,15 @@ export interface BudgetCreate {
   year: number
   month?: number
   alert_threshold?: number
+  is_enabled?: boolean
 }
 
 export interface BudgetUpdate {
+  category_id?: number | null
   amount?: number
+  period_type?: BudgetPeriodType
+  year?: number
+  month?: number
   alert_threshold?: number
   is_enabled?: boolean
 }
@@ -38,4 +52,10 @@ export interface BudgetQuery {
   year: number
   month?: number
   period_type?: BudgetPeriodType
+}
+
+export interface BudgetListPayload {
+  year: number
+  month?: number
+  budgets: BudgetWithProgress[]
 }

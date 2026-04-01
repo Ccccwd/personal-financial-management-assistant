@@ -2,8 +2,9 @@ import request from '@/utils/request'
 import {
   Reminder,
   ReminderCreate,
+  ReminderListPayload,
+  ReminderStatistics,
   ReminderUpdate,
-  APIResponse
 } from '@/types/index'
 
 /**
@@ -14,7 +15,7 @@ export function getReminders(params?: {
   reminder_type?: string
   is_enabled?: boolean
 }) {
-  return request.get<Reminder[]>('/reminders', { params })
+  return request.get<ReminderListPayload>('/reminders', { params })
 }
 
 /**
@@ -69,5 +70,5 @@ export function checkTodayReminders() {
  * 获取提醒统计
  */
 export function getReminderStatistics() {
-  return request.get<any>('/reminders/statistics')
+  return request.get<ReminderStatistics>('/reminders/statistics')
 }

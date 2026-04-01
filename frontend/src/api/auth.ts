@@ -1,12 +1,16 @@
 import request from '@/utils/request'
 import {
-  User,
-  LoginData,
   Token,
+  LoginData,
+  User,
   UserCreate,
   UserLogin,
   UserResponse,
-  APIResponse
+  UpdateCurrentUserRequest,
+  ChangePasswordRequest,
+  PasswordResetTokenRequest,
+  PasswordResetEmailRequest,
+  VerifyEmailForResetResponse
 } from '@/types/index'
 
 /**
@@ -22,12 +26,7 @@ export function register(data: UserCreate) {
  * @param data 登录数据
  */
 export function login(data: UserLogin) {
-  return request.post<{
-    access_token: string
-    refresh_token: string
-    token_type: string
-    user: User
-  }>('/auth/login', data)
+  return request.post<LoginData>('/auth/login', data)
 }
 
 /**
@@ -35,10 +34,7 @@ export function login(data: UserLogin) {
  * @param refreshToken 刷新令牌
  */
 export function refreshToken(refreshToken: string) {
-  return request.post<{
-    access_token: string
-    token_type: string
-  }>('/auth/refresh', null, {
+  return request.post<Token>('/auth/refresh', null, {
     params: {
       refresh_token: refreshToken
     }
@@ -68,6 +64,14 @@ export function updateCurrentUser(data: Partial<User>) {
 }
 
 /**
+ * 更新当前用户信息
+ * @param data 更新数据
+ */
+export function updateCurrentUserProfile(data: UpdateCurrentUserRequest) {
+  return request.put<User>('/auth/me', data)
+}
+
+/**
  * 修改密码
  * @param data 密码数据
  */
@@ -75,6 +79,14 @@ export function changePassword(data: {
   old_password: string
   new_password: string
 }) {
+  return request.post<{ message: string }>('/auth/change-password', data)
+}
+
+/**
+ * 修改密码
+ * @param data 密码数据
+ */
+export function changePasswordRequest(data: ChangePasswordRequest) {
   return request.post<{ message: string }>('/auth/change-password', data)
 }
 
@@ -98,6 +110,14 @@ export function resetPasswordWithToken(data: {
 }
 
 /**
+ * 通过 Token 重置密码
+ * @param data 重置数据
+ */
+export function resetPasswordByToken(data: PasswordResetTokenRequest) {
+  return request.post<{ message: string }>('/auth/password-reset', data)
+}
+
+/**
  * 直接通过邮箱重置密码
  * @param data 重置数据
  */
@@ -109,9 +129,17 @@ export function resetPasswordDirectly(data: {
 }
 
 /**
+ * 直接通过邮箱重置密码
+ * @param data 重置数据
+ */
+export function resetPasswordByEmail(data: PasswordResetEmailRequest) {
+  return request.post<{ message: string }>('/auth/reset-password', data)
+}
+
+/**
  * 验证邮箱是否存在
  * @param email 邮箱
  */
 export function verifyEmailForReset(email: string) {
-  return request.post<{ exists: boolean; message: string }>('/auth/verify-email-for-reset', { email })
+  return request.post<VerifyEmailForResetResponse>('/auth/verify-email-for-reset', { email })
 }
