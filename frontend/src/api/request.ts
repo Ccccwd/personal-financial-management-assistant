@@ -26,7 +26,7 @@ service.interceptors.request.use(
 
 // Response interceptor
 service.interceptors.response.use(
-  (response: AxiosResponse) => {
+  (response: AxiosResponse): any => {
     const res = response.data as APIResponse
     
     // Check custom code from backend

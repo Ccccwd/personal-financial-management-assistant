@@ -6,8 +6,12 @@ const USER_KEY = 'finance_user'
 
 export class TokenManager {
   static setToken(token: Token): void {
-    localStorage.setItem(TOKEN_KEY, token.access_token)
-    localStorage.setItem(REFRESH_TOKEN_KEY, token.refresh_token)
+    if (token.access_token) {
+      localStorage.setItem(TOKEN_KEY, token.access_token)
+    }
+    if (token.refresh_token) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, token.refresh_token)
+    }
   }
 
   static getAccessToken(): string | null {

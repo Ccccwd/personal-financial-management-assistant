@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
-import MainLayout from '@/layouts/MainLayout.vue'
+import MainLayout from '@/components/layout/MainLayout.vue'
 import { TokenManager } from '@/utils/auth'
 
 const routes: Array<RouteRecordRaw> = [
@@ -12,7 +12,7 @@ const routes: Array<RouteRecordRaw> = [
       {
         path: 'dashboard',
         name: 'Dashboard',
-        component: () => import('@/views/home/Dashboard.vue'),
+        component: () => import('@/views/dashboard/DashboardView.vue'),
         meta: { title: '仪表盘' }
       },
       {
@@ -36,25 +36,25 @@ const routes: Array<RouteRecordRaw> = [
       {
         path: 'budgets',
         name: 'Budgets',
-        component: () => import('@/views/budget/BudgetList.vue'),
+        component: () => import('@/views/budget/BudgetView.vue'),
         meta: { title: '预算管理' }
       },
       {
         path: 'statistics',
         name: 'Statistics',
-        component: () => import('@/views/statistics/Statistics.vue'),
+        component: () => import('@/views/statistics/StatisticsView.vue'),
         meta: { title: '统计分析' }
       },
       {
         path: 'import',
         name: 'Import',
-        component: () => import('@/views/import/ImportData.vue'),
+        component: () => import('@/views/import/WechatImport.vue'),
         meta: { title: '数据导入' }
       },
       {
         path: 'settings',
         name: 'Settings',
-        component: () => import('@/views/settings/Profile.vue'),
+        component: () => import('@/views/settings/ProfileView.vue'),
         meta: { title: '个人设置' }
       }
     ]
@@ -62,13 +62,13 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: '/login',
     name: 'Login',
-    component: () => import('@/views/auth/Login.vue'),
+    component: () => import('@/views/auth/LoginView.vue'),
     meta: { guest: true }
   },
   {
     path: '/register',
     name: 'Register',
-    component: () => import('@/views/auth/Register.vue'),
+    component: () => import('@/views/auth/RegisterView.vue'),
     meta: { guest: true }
   },
   {
