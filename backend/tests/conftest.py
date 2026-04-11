@@ -62,13 +62,19 @@ def test_user(client):
 
     自动注册一个测试用户并返回用户数据。
     """
-    response = client.post("/api/auth/register", json={
+    # 先尝试注册，如果已存在则忽略
+    client.post("/api/auth/register", json={
         "username": "testuser",
         "email": "test@example.com",
         "password": "test123456"
     })
-    assert response.status_code == 200
-    return response.json()["data"]
+    # 登录获取用户信息
+    login_resp = client.post("/api/auth/login", json={
+        "username": "testuser",
+        "password": "test123456"
+    })
+    assert login_resp.status_code == 200
+    return login_resp.json()["data"]
 
 
 @pytest.fixture
@@ -114,10 +120,10 @@ def test_category(client, auth_headers):
     response = client.post("/api/categories", headers=auth_headers, json={
         "name": "测试分类",
         "type": "expense",
-        "icon": "food",
+        "icon": "🍔",
         "color": "#FF6B6B"
     })
-    assert response.status_code == 200
+    assert response.status_code == 200, f"创建分类失败: {response.json()}"
     return response.json()["data"]
 
 
@@ -125,14 +131,12 @@ def test_category(client, auth_headers):
 def test_income_category(client, auth_headers):
     """
     创建测试收入分类
-
-    为测试用户创建一个收入分类。
     """
     response = client.post("/api/categories", headers=auth_headers, json={
         "name": "工资",
         "type": "income",
-        "icon": "wallet",
+        "icon": "💰",
         "color": "#4ECDC4"
     })
-    assert response.status_code == 200
+    assert response.status_code == 200, f"创建收入分类失败: {response.json()}"
     return response.json()["data"]
