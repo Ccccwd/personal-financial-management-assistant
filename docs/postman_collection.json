@@ -1,7 +1,7 @@
 {
 	"info": {
-		"_postman_id": "finance-api-v4",
-		"name": "财务记账 API 测试",
+		"_postman_id": "finance-api-full",
+		"name": "财务记账系统 API 测试",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"auth": {
@@ -13,185 +13,808 @@
 	],
 	"item": [
 		{
-			"name": "1. 用户注册",
-			"event": [{"listen": "test", "script": {"exec": [
-				"var res = pm.response.json();",
-				"pm.test('注册成功', function() {",
-				"    pm.response.to.have.status(200);",
-				"    pm.expect(res.code).to.eql(200);",
-				"});",
-				"pm.test('返回用户数据', function() {",
-				"    pm.expect(res.data).to.have.property('id');",
-				"    pm.expect(res.data.username).to.eql('testuser');",
-				"});"
-			], "type": "text/javascript"}}],
-			"request": {
-				"auth": {"type": "noauth"},
-				"method": "POST",
-				"header": [{"key": "Content-Type", "value": "application/json"}],
-				"body": {"mode": "raw", "raw": "{\n  \"username\": \"testuser\",\n  \"email\": \"test@example.com\",\n  \"password\": \"test123456\"\n}"},
-				"url": {"raw": "{{base_url}}/api/auth/register", "host": ["{{base_url}}"], "path": ["api", "auth", "register"]}
-			}
+			"name": "1. 认证管理",
+			"item": [
+				{
+					"name": "1.1 用户注册",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('注册成功', function() {",
+						"    pm.response.to.have.status(200);",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('返回用户数据', function() {",
+						"    pm.expect(res.data).to.have.property('id');",
+						"    pm.expect(res.data.username).to.eql('postman_user');",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"auth": {"type": "noauth"},
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"username\": \"postman_user\",\n  \"email\": \"postman@test.com\",\n  \"password\": \"test123456\"\n}"},
+						"url": {"raw": "{{base_url}}/api/auth/register", "host": ["{{base_url}}"], "path": ["api", "auth", "register"]}
+					}
+				},
+				{
+					"name": "1.2 重复注册",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('重复注册返回400', function() {",
+						"    pm.expect(res.code).to.eql(400);",
+						"});",
+						"pm.test('提示用户名已存在', function() {",
+						"    pm.expect(res.message).to.include('已存在');",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"auth": {"type": "noauth"},
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"username\": \"postman_user\",\n  \"email\": \"postman@test.com\",\n  \"password\": \"test123456\"\n}"},
+						"url": {"raw": "{{base_url}}/api/auth/register", "host": ["{{base_url}}"], "path": ["api", "auth", "register"]}
+					}
+				},
+				{
+					"name": "1.3 用户登录",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('登录成功', function() {",
+						"    pm.response.to.have.status(200);",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('返回 access_token', function() {",
+						"    pm.expect(res.data).to.have.property('access_token');",
+						"    pm.expect(res.data).to.have.property('token_type');",
+						"});",
+						"if (res.data && res.data.access_token) {",
+						"    pm.environment.set('token', res.data.access_token);",
+						"}",
+						"pm.test('Token 已保存', function() {",
+						"    pm.expect(pm.environment.get('token')).to.be.a('string');",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"auth": {"type": "noauth"},
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"username\": \"postman_user\",\n  \"password\": \"test123456\"\n}"},
+						"url": {"raw": "{{base_url}}/api/auth/login", "host": ["{{base_url}}"], "path": ["api", "auth", "login"]}
+					}
+				},
+				{
+					"name": "1.4 错误密码登录",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('密码错误返回401', function() {",
+						"    pm.expect(res.code).to.eql(401);",
+						"});",
+						"pm.test('提示用户名或密码错误', function() {",
+						"    pm.expect(res.message).to.include('错误');",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"auth": {"type": "noauth"},
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"username\": \"postman_user\",\n  \"password\": \"wrongpassword\"\n}"},
+						"url": {"raw": "{{base_url}}/api/auth/login", "host": ["{{base_url}}"], "path": ["api", "auth", "login"]}
+					}
+				},
+				{
+					"name": "1.5 获取当前用户信息",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('获取用户信息成功', function() {",
+						"    pm.response.to.have.status(200);",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('包含用户字段', function() {",
+						"    pm.expect(res.data).to.have.property('id');",
+						"    pm.expect(res.data).to.have.property('username');",
+						"    pm.expect(res.data).to.have.property('email');",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/auth/me", "host": ["{{base_url}}"], "path": ["api", "auth", "me"]}
+					}
+				}
+			]
 		},
 		{
-			"name": "2. 用户登录",
-			"event": [{"listen": "test", "script": {"exec": [
-				"var res = pm.response.json();",
-				"pm.test('登录成功', function() {",
-				"    pm.response.to.have.status(200);",
-				"    pm.expect(res.code).to.eql(200);",
-				"});",
-				"pm.test('返回 access_token', function() {",
-				"    pm.expect(res.data).to.have.property('access_token');",
-				"});",
-				"if (res.data && res.data.access_token) {",
-				"    pm.environment.set('token', res.data.access_token);",
-				"}",
-				"pm.test('Token 已保存', function() {",
-				"    pm.expect(pm.environment.get('token')).to.be.a('string');",
-				"});"
-			], "type": "text/javascript"}}],
-			"request": {
-				"auth": {"type": "noauth"},
-				"method": "POST",
-				"header": [{"key": "Content-Type", "value": "application/json"}],
-				"body": {"mode": "raw", "raw": "{\n  \"username\": \"testuser\",\n  \"password\": \"test123456\"\n}"},
-				"url": {"raw": "{{base_url}}/api/auth/login", "host": ["{{base_url}}"], "path": ["api", "auth", "login"]}
-			}
+			"name": "2. 分类管理",
+			"item": [
+				{
+					"name": "2.1 创建支出分类",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('创建分类成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('分类属性正确', function() {",
+						"    pm.expect(res.data.name).to.eql('餐饮美食');",
+						"    pm.expect(res.data.type).to.eql('expense');",
+						"    pm.expect(res.data.is_system).to.eql(false);",
+						"});",
+						"pm.environment.set('category_id', res.data.id);"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"name\": \"餐饮美食\",\n  \"type\": \"expense\",\n  \"icon\": \"🍔\",\n  \"color\": \"#FF6B6B\"\n}"},
+						"url": {"raw": "{{base_url}}/api/categories", "host": ["{{base_url}}"], "path": ["api", "categories"]}
+					}
+				},
+				{
+					"name": "2.2 创建收入分类",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('创建收入分类成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('类型为income', function() {",
+						"    pm.expect(res.data.type).to.eql('income');",
+						"});",
+						"pm.environment.set('category_id_2', res.data.id);"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"name\": \"工资收入\",\n  \"type\": \"income\",\n  \"icon\": \"💰\",\n  \"color\": \"#4CAF50\"\n}"},
+						"url": {"raw": "{{base_url}}/api/categories", "host": ["{{base_url}}"], "path": ["api", "categories"]}
+					}
+				},
+				{
+					"name": "2.3 创建重复分类",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('重复分类返回400', function() {",
+						"    pm.expect(res.code).to.eql(400);",
+						"});",
+						"pm.test('提示已存在', function() {",
+						"    pm.expect(res.message).to.include('已存在');",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"name\": \"餐饮美食\",\n  \"type\": \"expense\",\n  \"icon\": \"🍔\"\n}"},
+						"url": {"raw": "{{base_url}}/api/categories", "host": ["{{base_url}}"], "path": ["api", "categories"]}
+					}
+				},
+				{
+					"name": "2.4 获取分类列表",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('获取分类列表成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('返回分类数组', function() {",
+						"    pm.expect(res.data.categories).to.be.an('array');",
+						"    pm.expect(res.data.total).to.be.at.least(2);",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/categories", "host": ["{{base_url}}"], "path": ["api", "categories"]}
+					}
+				},
+				{
+					"name": "2.5 按类型过滤分类",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('过滤成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('全部为expense类型', function() {",
+						"    res.data.categories.forEach(function(c) {",
+						"        pm.expect(c.type).to.eql('expense');",
+						"    });",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/categories?type=expense", "host": ["{{base_url}}"], "path": ["api", "categories"], "query": [{"key": "type", "value": "expense"}]}
+					}
+				},
+				{
+					"name": "2.6 获取分类树",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('获取分类树成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('返回树形结构', function() {",
+						"    pm.expect(res.data).to.be.an('array');",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/categories/tree", "host": ["{{base_url}}"], "path": ["api", "categories", "tree"]}
+					}
+				},
+				{
+					"name": "2.7 获取分类详情",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('获取详情成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('包含完整字段', function() {",
+						"    pm.expect(res.data).to.have.property('id');",
+						"    pm.expect(res.data).to.have.property('name');",
+						"    pm.expect(res.data).to.have.property('type');",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/categories/{{category_id}}", "host": ["{{base_url}}"], "path": ["api", "categories", "{{category_id}}"]}
+					}
+				},
+				{
+					"name": "2.8 更新分类",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('更新成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('名称已更新', function() {",
+						"    pm.expect(res.data.name).to.eql('餐饮饮料');",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "PUT",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"name\": \"餐饮饮料\",\n  \"color\": \"#FF8C00\"\n}"},
+						"url": {"raw": "{{base_url}}/api/categories/{{category_id}}", "host": ["{{base_url}}"], "path": ["api", "categories", "{{category_id}}"]}
+					}
+				},
+				{
+					"name": "2.9 删除分类",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('删除成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/categories/{{category_id}}", "host": ["{{base_url}}"], "path": ["api", "categories", "{{category_id}}"]}
+					}
+				}
+			]
 		},
 		{
-			"name": "3. 获取分类列表",
-			"event": [{"listen": "test", "script": {"exec": [
-				"var res = pm.response.json();",
-				"pm.test('获取分类列表成功', function() {",
-				"    pm.response.to.have.status(200);",
-				"    pm.expect(res.code).to.eql(200);",
-				"});",
-				"pm.test('返回分类数组', function() {",
-				"    pm.expect(res.data.categories).to.be.an('array');",
-				"});"
-			], "type": "text/javascript"}}],
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {"raw": "{{base_url}}/api/categories?type=expense&include_system=true", "host": ["{{base_url}}"], "path": ["api", "categories"], "query": [{"key": "type", "value": "expense"}, {"key": "include_system", "value": "true"}]}
-			}
+			"name": "3. 账户管理",
+			"item": [
+				{
+					"name": "3.1 创建现金账户",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('创建账户成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('余额正确', function() {",
+						"    pm.expect(Number(res.data.balance)).to.eql(1000);",
+						"});",
+						"pm.test('为默认账户', function() {",
+						"    pm.expect(res.data.is_default).to.eql(true);",
+						"});",
+						"pm.environment.set('account_id', res.data.id);"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"name\": \"我的钱包\",\n  \"type\": \"cash\",\n  \"initial_balance\": 1000,\n  \"is_default\": true\n}"},
+						"url": {"raw": "{{base_url}}/api/accounts", "host": ["{{base_url}}"], "path": ["api", "accounts"]}
+					}
+				},
+				{
+					"name": "3.2 创建银行账户",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('创建成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('余额500', function() {",
+						"    pm.expect(Number(res.data.balance)).to.eql(500);",
+						"});",
+						"pm.environment.set('account_id_2', res.data.id);"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"name\": \"储蓄卡\",\n  \"type\": \"bank\",\n  \"initial_balance\": 500\n}"},
+						"url": {"raw": "{{base_url}}/api/accounts", "host": ["{{base_url}}"], "path": ["api", "accounts"]}
+					}
+				},
+				{
+					"name": "3.3 获取账户列表",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('获取列表成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('有2个账户', function() {",
+						"    pm.expect(res.data.total).to.eql(2);",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/accounts", "host": ["{{base_url}}"], "path": ["api", "accounts"]}
+					}
+				},
+				{
+					"name": "3.4 获取账户统计摘要",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('获取摘要成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('总余额1500', function() {",
+						"    pm.expect(Number(res.data.total_balance)).to.eql(1500);",
+						"});",
+						"pm.test('总账户数2', function() {",
+						"    pm.expect(res.data.total_accounts).to.eql(2);",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/accounts/summary", "host": ["{{base_url}}"], "path": ["api", "accounts", "summary"]}
+					}
+				},
+				{
+					"name": "3.5 获取默认账户",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('获取默认账户成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('是默认账户', function() {",
+						"    pm.expect(res.data.is_default).to.eql(true);",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/accounts/default", "host": ["{{base_url}}"], "path": ["api", "accounts", "default"]}
+					}
+				},
+				{
+					"name": "3.6 获取账户详情",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('获取详情成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('包含收支统计', function() {",
+						"    pm.expect(res.data).to.have.property('income_total');",
+						"    pm.expect(res.data).to.have.property('expense_total');",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/accounts/{{account_id}}", "host": ["{{base_url}}"], "path": ["api", "accounts", "{{account_id}}"]}
+					}
+				},
+				{
+					"name": "3.7 更新账户",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('更新成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('名称已更新', function() {",
+						"    pm.expect(res.data.name).to.eql('零花钱');",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "PUT",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"name\": \"零花钱\",\n  \"description\": \"日常零用\"\n}"},
+						"url": {"raw": "{{base_url}}/api/accounts/{{account_id}}", "host": ["{{base_url}}"], "path": ["api", "accounts", "{{account_id}}"]}
+					}
+				},
+				{
+					"name": "3.8 账户间转账200",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('转账成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('转出余额800', function() {",
+						"    pm.expect(Number(res.data.from_account_balance)).to.eql(800);",
+						"});",
+						"pm.test('转入余额700', function() {",
+						"    pm.expect(Number(res.data.to_account_balance)).to.eql(700);",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"from_account_id\": {{account_id}},\n  \"to_account_id\": {{account_id_2}},\n  \"amount\": 200,\n  \"remark\": \"测试转账\"\n}"},
+						"url": {"raw": "{{base_url}}/api/accounts/transfer", "host": ["{{base_url}}"], "path": ["api", "accounts", "transfer"]}
+					}
+				},
+				{
+					"name": "3.9 调整余额",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('调整成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('新余额2000', function() {",
+						"    pm.expect(Number(res.data.new_balance)).to.eql(2000);",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"new_balance\": 2000,\n  \"remark\": \"校正余额\"\n}"},
+						"url": {"raw": "{{base_url}}/api/accounts/{{account_id}}/adjust-balance", "host": ["{{base_url}}"], "path": ["api", "accounts", "{{account_id}}", "adjust-balance"]}
+					}
+				},
+				{
+					"name": "3.10 删除银行账户",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('删除成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/accounts/{{account_id_2}}", "host": ["{{base_url}}"], "path": ["api", "accounts", "{{account_id_2}}"]}
+					}
+				}
+			]
 		},
 		{
-			"name": "4. 创建分类",
-			"event": [{"listen": "test", "script": {"exec": [
-				"var res = pm.response.json();",
-				"pm.test('创建分类成功', function() {",
-				"    pm.response.to.have.status(200);",
-				"    pm.expect(res.code).to.eql(200);",
-				"});",
-				"pm.test('分类名称正确', function() {",
-				"    pm.expect(res.data.name).to.eql('餐饮美食');",
-				"});",
-				"pm.environment.set('category_id', res.data.id);"
-			], "type": "text/javascript"}}],
-			"request": {
-				"method": "POST",
-				"header": [{"key": "Content-Type", "value": "application/json"}],
-				"body": {"mode": "raw", "raw": "{\n  \"name\": \"餐饮美食\",\n  \"type\": \"expense\",\n  \"icon\": \"🍔\",\n  \"color\": \"#FF6B6B\"\n}"},
-				"url": {"raw": "{{base_url}}/api/categories", "host": ["{{base_url}}"], "path": ["api", "categories"]}
-			}
+			"name": "4. 交易记录",
+			"item": [
+				{
+					"name": "4.1 创建支出交易",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('创建交易成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('交易类型正确', function() {",
+						"    pm.expect(res.data.type).to.eql('expense');",
+						"});",
+						"pm.test('金额正确', function() {",
+						"    pm.expect(Number(res.data.amount)).to.eql(50);",
+						"});",
+						"pm.environment.set('transaction_id', res.data.id);"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"type\": \"expense\",\n  \"amount\": 50,\n  \"category_id\": {{category_id_2}},\n  \"account_id\": {{account_id}},\n  \"transaction_date\": \"2026-04-11T12:00:00\",\n  \"remark\": \"午餐\",\n  \"merchant_name\": \"麦当劳\"\n}"},
+						"url": {"raw": "{{base_url}}/api/transactions", "host": ["{{base_url}}"], "path": ["api", "transactions"]}
+					}
+				},
+				{
+					"name": "4.2 创建收入交易",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('创建收入成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('类型为income', function() {",
+						"    pm.expect(res.data.type).to.eql('income');",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"type\": \"income\",\n  \"amount\": 5000,\n  \"category_id\": {{category_id_2}},\n  \"account_id\": {{account_id}},\n  \"transaction_date\": \"2026-04-01T09:00:00\",\n  \"remark\": \"4月工资\"\n}"},
+						"url": {"raw": "{{base_url}}/api/transactions", "host": ["{{base_url}}"], "path": ["api", "transactions"]}
+					}
+				},
+				{
+					"name": "4.3 获取交易列表",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('获取列表成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('有交易数据', function() {",
+						"    pm.expect(res.data.total).to.be.at.least(1);",
+						"});",
+						"pm.test('包含分页信息', function() {",
+						"    pm.expect(res.data).to.have.property('page');",
+						"    pm.expect(res.data).to.have.property('total_pages');",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/transactions?page=1&page_size=10", "host": ["{{base_url}}"], "path": ["api", "transactions"], "query": [{"key": "page", "value": "1"}, {"key": "page_size", "value": "10"}]}
+					}
+				},
+				{
+					"name": "4.4 获取交易统计摘要",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('获取摘要成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('包含收支统计', function() {",
+						"    pm.expect(res.data).to.have.property('total_income');",
+						"    pm.expect(res.data).to.have.property('total_expense');",
+						"    pm.expect(res.data).to.have.property('net_income');",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/transactions/summary", "host": ["{{base_url}}"], "path": ["api", "transactions", "summary"]}
+					}
+				},
+				{
+					"name": "4.5 搜索交易",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('搜索成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('返回搜索结果', function() {",
+						"    pm.expect(res.data).to.have.property('results');",
+						"    pm.expect(res.data).to.have.property('total');",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/transactions/search?keyword=午餐", "host": ["{{base_url}}"], "path": ["api", "transactions", "search"], "query": [{"key": "keyword", "value": "午餐"}]}
+					}
+				},
+				{
+					"name": "4.6 获取交易详情",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('获取详情成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('包含完整字段', function() {",
+						"    pm.expect(res.data).to.have.property('id');",
+						"    pm.expect(res.data).to.have.property('amount');",
+						"    pm.expect(res.data).to.have.property('type');",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/transactions/{{transaction_id}}", "host": ["{{base_url}}"], "path": ["api", "transactions", "{{transaction_id}}"]}
+					}
+				},
+				{
+					"name": "4.7 更新交易",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('更新成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('金额已更新', function() {",
+						"    pm.expect(Number(res.data.amount)).to.eql(80);",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "PUT",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"amount\": 80,\n  \"remark\": \"晚餐\"\n}"},
+						"url": {"raw": "{{base_url}}/api/transactions/{{transaction_id}}", "host": ["{{base_url}}"], "path": ["api", "transactions", "{{transaction_id}}"]}
+					}
+				},
+				{
+					"name": "4.8 删除交易",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('删除成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/transactions/{{transaction_id}}", "host": ["{{base_url}}"], "path": ["api", "transactions", "{{transaction_id}}"]}
+					}
+				}
+			]
 		},
 		{
-			"name": "5. 创建账户（余额1000）",
-			"event": [{"listen": "test", "script": {"exec": [
-				"var res = pm.response.json();",
-				"pm.test('创建账户成功', function() {",
-				"    pm.response.to.have.status(200);",
-				"    pm.expect(res.code).to.eql(200);",
-				"});",
-				"pm.test('余额正确', function() {",
-				"    pm.expect(Number(res.data.balance)).to.eql(1000);",
-				"});",
-				"pm.environment.set('account_id', res.data.id);"
-			], "type": "text/javascript"}}],
-			"request": {
-				"method": "POST",
-				"header": [{"key": "Content-Type", "value": "application/json"}],
-				"body": {"mode": "raw", "raw": "{\n  \"name\": \"我的钱包\",\n  \"type\": \"cash\",\n  \"initial_balance\": 1000,\n  \"is_default\": true\n}"},
-				"url": {"raw": "{{base_url}}/api/accounts", "host": ["{{base_url}}"], "path": ["api", "accounts"]}
-			}
+			"name": "5. 预算管理",
+			"item": [
+				{
+					"name": "5.1 创建月度预算",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('创建预算成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('预算金额正确', function() {",
+						"    pm.expect(Number(res.data.amount)).to.eql(3000);",
+						"});",
+						"pm.environment.set('budget_id', res.data.id);"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"amount\": 3000,\n  \"period_type\": \"monthly\",\n  \"year\": 2026,\n  \"month\": 4,\n  \"alert_threshold\": 80\n}"},
+						"url": {"raw": "{{base_url}}/api/budgets", "host": ["{{base_url}}"], "path": ["api", "budgets"]}
+					}
+				},
+				{
+					"name": "5.2 获取预算列表",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('获取预算列表成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('包含预算数据', function() {",
+						"    pm.expect(res.data.budgets).to.be.an('array');",
+						"    pm.expect(res.data.total).to.be.at.least(1);",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/budgets?year=2026&month=4", "host": ["{{base_url}}"], "path": ["api", "budgets"], "query": [{"key": "year", "value": "2026"}, {"key": "month", "value": "4"}]}
+					}
+				},
+				{
+					"name": "5.3 获取预算详情",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('获取详情成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('包含进度信息', function() {",
+						"    pm.expect(res.data).to.have.property('actual_spending');",
+						"    pm.expect(res.data).to.have.property('percentage');",
+						"    pm.expect(res.data).to.have.property('status');",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/budgets/{{budget_id}}", "host": ["{{base_url}}"], "path": ["api", "budgets", "{{budget_id}}"]}
+					}
+				},
+				{
+					"name": "5.4 更新预算",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('更新成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('金额已更新', function() {",
+						"    pm.expect(Number(res.data.amount)).to.eql(5000);",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "PUT",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"amount\": 5000\n}"},
+						"url": {"raw": "{{base_url}}/api/budgets/{{budget_id}}", "host": ["{{base_url}}"], "path": ["api", "budgets", "{{budget_id}}"]}
+					}
+				},
+				{
+					"name": "5.5 删除预算",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('删除成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/budgets/{{budget_id}}", "host": ["{{base_url}}"], "path": ["api", "budgets", "{{budget_id}}"]}
+					}
+				}
+			]
 		},
 		{
-			"name": "6. 获取账户列表",
-			"event": [{"listen": "test", "script": {"exec": [
-				"var res = pm.response.json();",
-				"pm.test('获取账户列表成功', function() {",
-				"    pm.response.to.have.status(200);",
-				"    pm.expect(res.code).to.eql(200);",
-				"});",
-				"pm.test('有账户数据', function() {",
-				"    pm.expect(res.data.accounts.length).to.be.at.least(1);",
-				"});"
-			], "type": "text/javascript"}}],
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {"raw": "{{base_url}}/api/accounts", "host": ["{{base_url}}"], "path": ["api", "accounts"]}
-			}
+			"name": "6. 统计分析",
+			"item": [
+				{
+					"name": "6.1 获取统计概览",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('获取概览成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('包含月度汇总', function() {",
+						"    pm.expect(res.data).to.have.property('monthly_summary');",
+						"    pm.expect(res.data.monthly_summary).to.have.property('income');",
+						"    pm.expect(res.data.monthly_summary).to.have.property('expense');",
+						"});",
+						"pm.test('包含总资产', function() {",
+						"    pm.expect(res.data).to.have.property('total_balance');",
+						"});",
+						"pm.test('包含趋势数据', function() {",
+						"    pm.expect(res.data).to.have.property('trend_data');",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/statistics/overview?current_year=2026&current_month=4", "host": ["{{base_url}}"], "path": ["api", "statistics", "overview"], "query": [{"key": "current_year", "value": "2026"}, {"key": "current_month", "value": "4"}]}
+					}
+				},
+				{
+					"name": "6.2 获取趋势分析",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('获取趋势成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('包含趋势数组', function() {",
+						"    pm.expect(res.data.trend).to.be.an('array');",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/statistics/trend?period=daily", "host": ["{{base_url}}"], "path": ["api", "statistics", "trend"], "query": [{"key": "period", "value": "daily"}]}
+					}
+				},
+				{
+					"name": "6.3 获取分类统计",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('获取分类统计成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('包含分类数据', function() {",
+						"    pm.expect(res.data).to.have.property('categories');",
+						"    pm.expect(res.data).to.have.property('total_amount');",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/statistics/category?transaction_type=expense&period=monthly&year=2026&month=4", "host": ["{{base_url}}"], "path": ["api", "statistics", "category"], "query": [{"key": "transaction_type", "value": "expense"}, {"key": "period", "value": "monthly"}, {"key": "year", "value": "2026"}, {"key": "month", "value": "4"}]}
+					}
+				}
+			]
 		},
 		{
-			"name": "7. 创建第二个账户（余额500）",
-			"event": [{"listen": "test", "script": {"exec": [
-				"var res = pm.response.json();",
-				"pm.test('创建成功', function() {",
-				"    pm.response.to.have.status(200);",
-				"});",
-				"pm.test('余额正确', function() {",
-				"    pm.expect(Number(res.data.balance)).to.eql(500);",
-				"});",
-				"pm.environment.set('account_id_2', res.data.id);"
-			], "type": "text/javascript"}}],
-			"request": {
-				"method": "POST",
-				"header": [{"key": "Content-Type", "value": "application/json"}],
-				"body": {"mode": "raw", "raw": "{\n  \"name\": \"储蓄账户\",\n  \"type\": \"bank\",\n  \"initial_balance\": 500\n}"},
-				"url": {"raw": "{{base_url}}/api/accounts", "host": ["{{base_url}}"], "path": ["api", "accounts"]}
-			}
-		},
-		{
-			"name": "8. 账户间转账200",
-			"event": [{"listen": "test", "script": {"exec": [
-				"var res = pm.response.json();",
-				"pm.test('转账成功', function() {",
-				"    pm.response.to.have.status(200);",
-				"});",
-				"pm.test('转出余额800', function() {",
-				"    pm.expect(Number(res.data.from_account_balance)).to.eql(800);",
-				"});",
-				"pm.test('转入余额700', function() {",
-				"    pm.expect(Number(res.data.to_account_balance)).to.eql(700);",
-				"});"
-			], "type": "text/javascript"}}],
-			"request": {
-				"method": "POST",
-				"header": [{"key": "Content-Type", "value": "application/json"}],
-				"body": {"mode": "raw", "raw": "{\n  \"from_account_id\": {{account_id}},\n  \"to_account_id\": {{account_id_2}},\n  \"amount\": 200,\n  \"remark\": \"测试转账\"\n}"},
-				"url": {"raw": "{{base_url}}/api/accounts/transfer", "host": ["{{base_url}}"], "path": ["api", "accounts", "transfer"]}
-			}
-		},
-		{
-			"name": "9. 调整余额",
-			"event": [{"listen": "test", "script": {"exec": [
-				"var res = pm.response.json();",
-				"pm.test('调整成功', function() {",
-				"    pm.response.to.have.status(200);",
-				"});",
-				"pm.test('新余额1000', function() {",
-				"    pm.expect(Number(res.data.new_balance)).to.eql(1000);",
-				"});"
-			], "type": "text/javascript"}}],
-			"request": {
-				"method": "POST",
-				"header": [{"key": "Content-Type", "value": "application/json"}],
-				"body": {"mode": "raw", "raw": "{\n  \"new_balance\": 1000,\n  \"remark\": \"校正余额\"\n}"},
-				"url": {"raw": "{{base_url}}/api/accounts/{{account_id}}/adjust-balance", "host": ["{{base_url}}"], "path": ["api", "accounts", "{{account_id}}", "adjust-balance"]}
-			}
+			"name": "7. 健康检查",
+			"item": [
+				{
+					"name": "7.1 服务健康检查",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('服务运行正常', function() {",
+						"    pm.response.to.have.status(200);",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('返回健康状态', function() {",
+						"    pm.expect(res.data.status).to.eql('healthy');",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"auth": {"type": "noauth"},
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/health", "host": ["{{base_url}}"], "path": ["api", "health"]}
+					}
+				}
+			]
 		}
 	]
 }

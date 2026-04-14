@@ -9,6 +9,4 @@ localResources:
 # Each entry here maps a local resource to one or more corresponding objects in Postman Cloud
 cloudResources:
   collections:
-    ..\postman\collections\智能个人财务记账系统 API: dbfa3a6d-6bed-4c08-8ad8-4f4599e2016f
-    ..\postman\collections\个人财务记账系统 API 测试: ea313453-7a45-480d-ae7b-fc8a6df01a52
-    ..\postman\collections\财务记账 API 测试: d16c089f-6cbf-4c0a-8ad2-2af15a54ba8c
+    ..\postman\collections\财务记账系统 API 测试: 9f00cd0d-9ce2-44ec-b8fa-2dbf3fa497b4
