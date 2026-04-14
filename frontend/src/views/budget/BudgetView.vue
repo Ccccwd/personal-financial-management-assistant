@@ -26,7 +26,7 @@
         </el-form-item>
         <el-form-item label="月份">
           <el-select v-model="queryForm.month" placeholder="全年" clearable style="width: 120px">
-            <el-option label="全年" :value="null" />
+            <el-option label="全年" :value="0" />
             <el-option v-for="m in 12" :key="m" :label="`${m}月`" :value="m" />
           </el-select>
         </el-form-item>
@@ -99,7 +99,7 @@
         <div class="item-stats">
           <span>总额：¥{{ item.amount }}</span>
           <span>已用：¥{{ item.used_amount || 0 }}</span>
-          <span>剩余：¥{{ (item.amount - (item.used_amount || 0)) > 0 ? (item.amount - (item.used_amount || 0)).toFixed(2) : 0 }}</span>
+          <span>剩余：¥{{ (Number(item.amount || 0) - Number(item.used_amount || 0)) > 0 ? (Number(item.amount || 0) - Number(item.used_amount || 0)).toFixed(2) : 0 }}</span>
         </div>
         <el-progress 
           class="item-progress" 
@@ -226,9 +226,12 @@ const getSummaryProgressStatus = () => {
 const fetchData = async () => {
   loading.value = true
   try {
-    const res = await getBudgets(queryForm)
-    if (res && res.budgets) {
-      budgets.value = res.budgets || []
+    const res = await getBudgets({
+      ...queryForm,
+      year: Number(queryForm.year)
+    } as any)
+    if (res && (res as any).budgets) {
+      budgets.value = (res as any).budgets || []
     } else if (res && (res as any).data?.budgets) {
       budgets.value = (res as any).data.budgets
     }

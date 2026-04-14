@@ -12,7 +12,7 @@
       <div class="summary-content">
         <div class="summary-item">
           <div class="summary-label">总资产</div>
-          <div class="summary-value amount-positive">{{ summary.total_balance.toFixed(2) }}</div>
+          <div class="summary-value amount-positive">{{ Number(summary.total_balance || 0).toFixed(2) }}</div>
         </div>
         <div class="summary-item">
           <div class="summary-label">账户总数</div>
@@ -25,8 +25,8 @@
               v-for="(dist, idx) in summary.account_distribution" 
               :key="idx"
               class="dist-segment"
-              :style="{ width: ((dist.balance / summary.total_balance) * 100) + '%', backgroundColor: getAccountTypeColor(dist.type) }"
-              :title="`${getAccountTypeName(dist.type)}: ${dist.balance.toFixed(2)}`"
+              :style="{ width: ((Number(dist.balance || 0) / Number(summary.total_balance || 1)) * 100) + '%', backgroundColor: getAccountTypeColor(dist.type) }"
+              :title="`${getAccountTypeName(dist.type)}: ${Number(dist.balance || 0).toFixed(2)}`"
             ></div>
           </div>
         </div>
@@ -56,9 +56,8 @@
           
           <div class="account-balance">
             <span class="currency">¥</span>
-            <span class="amount">{{ account.balance.toFixed(2) }}</span>
+            <span class="amount">{{ Number(account.balance || 0).toFixed(2) }}</span>
           </div>
-
           <div class="account-actions" @click.stop>
             <el-button link type="primary" @click="openTransferDialog(account)">转账</el-button>
             <el-button link type="primary" @click="openEditDialog(account)">编辑</el-button>

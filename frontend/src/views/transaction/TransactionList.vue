@@ -64,8 +64,8 @@
                 <span class="day-desc">{{ getDayOfWeek(group.date) }}</span>
               </div>
               <div class="day-summary">
-                <span v-if="group.income > 0" class="inc-text">收: {{ group.income.toFixed(2) }}</span>
-                <span v-if="group.expense > 0" class="exp-text">支: {{ group.expense.toFixed(2) }}</span>
+                <span v-if="Number(group.income || 0) > 0" class="inc-text">收: {{ Number(group.income || 0).toFixed(2) }}</span>
+                <span v-if="Number(group.expense || 0) > 0" class="exp-text">支: {{ Number(group.expense || 0).toFixed(2) }}</span>
               </div>
             </div>
             

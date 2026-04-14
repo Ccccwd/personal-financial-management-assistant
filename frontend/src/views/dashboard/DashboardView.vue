@@ -23,7 +23,7 @@
             </div>
             <div class="card-info">
               <div class="label">本月收入</div>
-              <div class="value">¥ {{ statistics.income.toFixed(2) }}</div>
+              <div class="value">¥ {{ Number(statistics.income || 0).toFixed(2) }}</div>
               <div class="trend positive">
                 <el-icon><CaretTop /></el-icon> 12% 较上月
               </div>
@@ -39,7 +39,7 @@
             </div>
             <div class="card-info">
               <div class="label">本月支出</div>
-              <div class="value">¥ {{ statistics.expense.toFixed(2) }}</div>
+              <div class="value">¥ {{ Number(statistics.expense || 0).toFixed(2) }}</div>
               <div class="trend negative">
                 <el-icon><CaretBottom /></el-icon> 5% 较上月
               </div>
@@ -56,10 +56,10 @@
             <div class="card-info">
               <div class="label">本月结余</div>
               <div class="value" :class="{ 'negative-val': statistics.balance < 0 }">
-                ¥ {{ statistics.balance.toFixed(2) }}
+                ¥ {{ Number(statistics.balance || 0).toFixed(2) }}
               </div>
               <div class="trend normal">
-                结余率 {{ ((statistics.balance / statistics.income) * 100).toFixed(1) }}%
+                结余率 {{ ((Number(statistics.balance || 0) / Number(statistics.income || 1)) * 100).toFixed(1) }}%
               </div>
             </div>
           </div>
@@ -73,7 +73,7 @@
             </div>
             <div class="card-info">
               <div class="label">总资产</div>
-              <div class="value">¥ {{ statistics.totalAssets.toFixed(2) }}</div>
+              <div class="value">¥ {{ Number(statistics.totalAssets || 0).toFixed(2) }}</div>
               <div class="trend normal">
                 包含所有账户
               </div>
