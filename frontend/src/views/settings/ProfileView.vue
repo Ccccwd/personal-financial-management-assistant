@@ -2,7 +2,7 @@
   <div class="settings-page">
     <div class="page-header">
       <h1 class="page-title">个人设置</h1>
-      <div class="header-desc">管理您的基础账户信息、安全偏好及系统设定</div>
+      <div class="header-desc">管理您的基础账户信息及系统设定</div>
     </div>
 
     <el-row :gutter="24" justify="center">
@@ -19,8 +19,14 @@
           <div class="avatar-section">
             <el-avatar :size="80" :src="userStore.user?.avatar || defaultAvatar" class="avatar-img" />
             <div class="avatar-actions">
-              <el-button type="primary" plain size="small">上传新头像</el-button>
-              <div class="avatar-hint">建议尺寸 200x200px，支持 JPG、PNG 格式</div>
+              <el-upload
+                action="#"
+                :show-file-list="false"
+                :auto-upload="false"
+                :on-change="handleAvatarChange"
+              >
+                <el-button type="primary" plain size="small">上传新头像</el-button>
+              </el-upload>
             </div>
           </div>
 
@@ -36,7 +42,7 @@
               <el-input v-model="profileForm.username" placeholder="请输入用户名" />
             </el-form-item>
             <el-form-item label="注册邮箱">
-              <el-input :model-value="userStore.user?.email || 'admin@example.com'" disabled>
+              <el-input :model-value="userStore.user?.email || ''" disabled>
                 <template #append>已验证</template>
               </el-input>
             </el-form-item>
@@ -108,7 +114,7 @@ import { User, Lock } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { updateCurrentUser, changePassword } from '@/api/auth'
 import { ElMessage } from 'element-plus'
-import type { FormInstance, FormRules } from 'element-plus'
+import type { FormInstance, FormRules, UploadFile } from 'element-plus'
 import dayjs from 'dayjs'
 
 const userStore = useUserStore()
@@ -160,6 +166,32 @@ const passwordRules = reactive<FormRules>({
   ]
 })
 
+const handleAvatarChange = (uploadFile: UploadFile) => {
+  if (uploadFile.raw) {
+    const isImage = uploadFile.raw.type.startsWith('image/')
+    const isLt2M = uploadFile.raw.size / 1024 / 1024 < 2
+
+    if (!isImage) {
+      ElMessage.error('上传头像图片只能是图片格式!')
+      return false
+    }
+    if (!isLt2M) {
+      ElMessage.error('上传头像图片大小不能超过 2MB!')
+      return false
+    }
+
+    // Convert file to base64 for local display
+    const reader = new FileReader()
+    reader.readAsDataURL(uploadFile.raw)
+    reader.onload = () => {
+      if (userStore.user) {
+        userStore.user.avatar = reader.result as string
+        ElMessage.success('头像已更新')
+      }
+    }
+  }
+}
+
 const handleSaveProfile = async () => {
   const valid = await profileFormRef.value?.validate().catch(() => false)
   if (!valid) return
@@ -168,7 +200,7 @@ const handleSaveProfile = async () => {
   try {
     await updateCurrentUser({ username: profileForm.username })
     await userStore.getUserInfo()
-    ElMessage.success('🎉 个人信息更新成功！')
+    ElMessage.success('个人信息更新成功！')
   } catch (error) {
     console.warn('API调用失败或后端500，使用 Mock 成功处理')
     // 模拟成功更新
@@ -176,7 +208,7 @@ const handleSaveProfile = async () => {
       userStore.user.username = profileForm.username
     }
     setTimeout(() => {
-      ElMessage.success('🎉 个人信息更新成功（Mock）！')
+      ElMessage.success('个人信息更新成功（Mock）！')
       saving.value = false
     }, 600)
   } finally {
@@ -213,11 +245,16 @@ const handleChangePassword = async () => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  // If user information is somehow not available, try to fetch it
+  if (!userStore.user) {
+    await userStore.getUserInfo().catch(() => {})
+  }
+  
   if (userStore.user) {
     profileForm.username = userStore.user.username
   } else {
-    profileForm.username = '测试管理员'
+    profileForm.username = ''
   }
 })
 </script>
