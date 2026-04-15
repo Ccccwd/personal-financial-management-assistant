@@ -21,19 +21,23 @@
         >
           <el-form-item prop="username">
             <el-input 
+              name="username"
               v-model="loginForm.username" 
               placeholder="请输入用户名" 
               :prefix-icon="User"
+              autocomplete="off"
             />
           </el-form-item>
           
           <el-form-item prop="password">
             <el-input 
+              name="password"
               v-model="loginForm.password" 
               type="password" 
               placeholder="请输入密码" 
               :prefix-icon="Lock"
               show-password
+              autocomplete="new-password"
             />
           </el-form-item>
           

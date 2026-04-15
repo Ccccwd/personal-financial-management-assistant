@@ -21,37 +21,45 @@
         >
           <el-form-item prop="username">
             <el-input 
+              name="username"
               v-model="registerForm.username" 
               placeholder="请输入用户名" 
               :prefix-icon="User"
+              autocomplete="off"
             />
           </el-form-item>
 
           <el-form-item prop="email">
             <el-input 
+              name="email"
               v-model="registerForm.email" 
               placeholder="请输入邮箱" 
               :prefix-icon="Message"
+              autocomplete="off"
             />
           </el-form-item>
           
           <el-form-item prop="password">
             <el-input 
+              name="password"
               v-model="registerForm.password" 
               type="password" 
               placeholder="请输入密码" 
               :prefix-icon="Lock"
               show-password
+              autocomplete="new-password"
             />
           </el-form-item>
 
           <el-form-item prop="confirmPassword">
             <el-input 
+              name="confirmPassword"
               v-model="registerForm.confirmPassword" 
               type="password" 
               placeholder="请再次输入密码" 
               :prefix-icon="Lock"
               show-password
+              autocomplete="new-password"
             />
           </el-form-item>
 

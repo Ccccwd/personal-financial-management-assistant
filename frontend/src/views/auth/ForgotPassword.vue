@@ -14,7 +14,7 @@
 
         <!-- 步骤一：输入邮箱 -->
         <div v-if="step === 1">
-          <p class="step-desc">请输入您注册时使用的邮箱地址，我们将发送密码重置链接。</p>
+          <p class="step-desc">请输入注册时使用的邮箱地址，我们将发送密码重置链接。</p>
           <el-form
             ref="emailFormRef"
             :model="emailForm"
@@ -51,7 +51,7 @@
           <p class="success-desc">
             我们已向 <strong>{{ emailForm.email }}</strong> 发送了密码重置邮件，请查收并按照邮件中的指引操作。
           </p>
-          <el-button type="primary" @click="handleResend" :loading="loading" :disabled="countdown > 0">
+          <el-button type="primary" class="submit-btn" @click="handleResend" :loading="loading" :disabled="countdown > 0">
             {{ countdown > 0 ? `重新发送 (${countdown}s)` : '重新发送' }}
           </el-button>
         </div>
@@ -148,90 +148,146 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* Design Spec Colors */
+:root {
+  --color-primary: #16A34A;
+  --color-primary-hover: #15803D;
+  --color-bg: #F9FAFB;
+  --color-text-primary: #111827;
+  --color-text-secondary: #4B5563;
+}
+
 .forgot-container {
   min-height: 100vh;
   display: flex;
-  align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 20px;
+  align-items: center;
+  background-color: #F9FAFB; /* --color-bg */
+  font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background-image: radial-gradient(#16A34A 1px, transparent 1px); /* Subtle pattern using primary color */
+  background-size: 40px 40px;
 }
 
 .forgot-content {
   width: 100%;
-  max-width: 460px;
-  text-align: center;
+  max-width: 440px;
+  padding: 20px;
 }
 
 .forgot-header {
-  margin-bottom: 30px;
-  color: #fff;
+  text-align: center;
+  margin-bottom: 32px;
 }
 
 .logo-wrapper {
+  display: inline-flex;
+  padding: 12px;
+  background-color: #DCFCE7; /* Light green background for logo */
+  border-radius: 16px;
   margin-bottom: 16px;
 }
 
 .logo-icon {
-  color: #fff;
+  color: #16A34A; /* --color-primary */
 }
 
 .app-title {
-  font-size: 28px;
-  font-weight: 700;
   margin: 0 0 8px;
+  font-size: 28px;
+  font-weight: 800;
+  color: #111827; /* --color-text-primary */
+  letter-spacing: -0.5px;
 }
 
 .app-subtitle {
-  font-size: 14px;
-  opacity: 0.85;
   margin: 0;
+  font-size: 14px;
+  color: #6B7280; /* lighter secondary text */
 }
 
 .forgot-card {
-  border-radius: 12px;
-  padding: 10px 20px;
+  border-radius: 16px; /* Smooth corners */
+  border: none;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); /* Soft shadow */
+  overflow: visible;
+}
+
+/* Override Element Plus Card Body Padding */
+:deep(.el-card__body) {
+  padding: 32px;
 }
 
 .card-title {
-  font-size: 22px;
+  margin: 0 0 24px;
+  font-size: 20px;
   font-weight: 600;
-  margin: 0 0 20px;
-  color: #303133;
+  color: #111827; /* --color-text-primary */
+  text-align: center;
 }
 
 .step-desc {
   font-size: 14px;
-  color: #606266;
+  color: #4B5563; /* --color-text-secondary */
   margin-bottom: 24px;
   line-height: 1.6;
+  text-align: center;
 }
 
-.forgot-form .submit-btn {
+.forgot-form .el-input {
+  --el-input-hover-border-color: #16A34A;
+  --el-input-focus-border-color: #16A34A;
+}
+
+/* Primary Button Styling */
+.submit-btn {
   width: 100%;
-  height: 44px;
+  padding: 12px;
+  font-weight: 600;
   font-size: 16px;
+  background-color: #16A34A; /* --color-primary */
+  border-color: #16A34A;
   border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.submit-btn:hover, .submit-btn:focus {
+  background-color: #15803D; /* --color-primary-hover */
+  border-color: #15803D;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(22, 163, 74, 0.3);
+}
+
+.submit-btn:active {
+  transform: translateY(0);
+}
+
+/* Link Styling */
+.el-link.el-link--primary {
+  --el-link-text-color: #16A34A;
+  --el-link-hover-text-color: #15803D;
+  font-weight: 500;
 }
 
 .success-step {
-  padding: 20px 0;
+  padding: 10px 0;
+  text-align: center;
 }
 
 .success-icon {
-  color: #67c23a;
+  color: #22C55E; /* --color-success */
+  margin-bottom: 16px;
 }
 
 .success-text {
   font-size: 20px;
   font-weight: 600;
-  color: #303133;
-  margin: 16px 0 8px;
+  color: #111827; /* --color-text-primary */
+  margin: 0 0 12px;
 }
 
 .success-desc {
   font-size: 14px;
-  color: #606266;
+  color: #4B5563; /* --color-text-secondary */
   line-height: 1.6;
   margin-bottom: 24px;
 }
@@ -242,8 +298,9 @@ onUnmounted(() => {
 }
 
 .forgot-footer {
-  margin-top: 30px;
+  margin-top: 40px;
+  text-align: center;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
+  color: #9CA3AF;
 }
 </style>
