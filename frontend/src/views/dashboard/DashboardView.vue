@@ -91,8 +91,8 @@
             <div class="card-header">
               <span>近期收支趋势</span>
               <el-radio-group v-model="trendPeriod" size="small">
-                <el-radio-button label="week">本周</el-radio-button>
-                <el-radio-button label="month">本月</el-radio-button>
+                <el-radio-button value="week">本周</el-radio-button>
+                <el-radio-button value="month">本月</el-radio-button>
               </el-radio-group>
             </div>
           </template>

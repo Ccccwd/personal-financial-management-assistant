@@ -57,8 +57,8 @@
             <div class="card-header">
               <span>收支趋势</span>
               <el-radio-group v-model="trendType" size="small" @change="renderTrendChart">
-                <el-radio-button label="daily">日</el-radio-button>
-                <el-radio-button label="weekly">周</el-radio-button>
+                <el-radio-button value="daily">日</el-radio-button>
+                <el-radio-button value="weekly">周</el-radio-button>
               </el-radio-group>
             </div>
           </template>
@@ -183,7 +183,7 @@ const renderTrendChart = () => {
     yAxis: {
       type: 'value',
       axisLabel: { color: '#6b7280' },
-      splitLine: { lineStyle: { color: '#f3f4f6' }, type: 'dashed' }
+      splitLine: { lineStyle: { color: '#f3f4f6', type: 'dashed' } }
     },
     series: [
       {

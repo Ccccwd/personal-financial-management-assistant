@@ -114,7 +114,7 @@ frontend/
     │
     ├── views/                   # 页面视图组件
     │   ├── auth/                # 认证页面
-    │   ├── home/                # 首页
+    │   ├── dashboard/           # 仪表盘
     │   ├── transaction/         # 交易页面
     │   ├── account/             # 账户页面
     │   ├── statistics/          # 统计页面
