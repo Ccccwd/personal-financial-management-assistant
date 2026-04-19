@@ -9,7 +9,15 @@
       "Bash(curl -s -X POST \"http://localhost:8000/api/auth/register\" -H \"Content-Type: application/json\" -d '{\"\"\"\"username\"\"\"\": \"\"\"\"testuser\"\"\"\", \"\"\"\"email\"\"\"\": \"\"\"\"test@example.com\"\"\"\", \"\"\"\"password\"\"\"\": \"\"\"\"test123456\"\"\"\"}')",
       "Bash(curl:*)",
       "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjIsImV4cCI6MTc3NDQxMzA2NH0.YYDtLEfVKi9DkoRaaOZkSZKW4xQVH1tB0dHEIpyPsJE\")",
-      "Bash(__NEW_LINE_2a1f9fa3d3f89dd2__ curl:*)"
+      "Bash(__NEW_LINE_2a1f9fa3d3f89dd2__ curl:*)",
+      "Bash(python -m py_compile app/models/ai_advice_record.py)",
+      "Bash(python -m py_compile app/schemas/ai.py)",
+      "Bash(python -m py_compile app/services/ai_service.py)",
+      "Bash(python -m py_compile app/api/ai.py)",
+      "Bash(python -c \"import json; d=json.load\\(open\\(''docs/postman_collection.json''\\)\\); print\\([i[''name''] for i in d[''item'']]\\)\")",
+      "Bash(python -c \"import json; d=json.load\\(open\\(''docs/postman_collection.json'',encoding=''utf-8''\\)\\); print\\([i[''name''] for i in d[''item'']]\\)\")",
+      "Bash(python -c \"import json; d=json.load\\(open\\(''docs/postman_collection.json'',encoding=''utf-8''\\)\\); print\\(len\\(d[''item'']\\)\\); ai_folder=[i for i in d[''item''] if ''AI'' in i[''name'']]; print\\(''AI folder:'', ai_folder[0][''name''] if ai_folder else ''NOT FOUND''\\); print\\(''AI requests:'', len\\(ai_folder[0][''item'']\\) if ai_folder else 0\\)\")",
+      "Bash(python -c \":*)"
     ]
   }
 }

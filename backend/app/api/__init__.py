@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from . import auth, health, categories, accounts, transactions, budgets, statistics
+from . import auth, health, categories, accounts, transactions, budgets, statistics, reminders, reports, balance_history, ai
 
 api_router = APIRouter()
 
@@ -11,3 +11,7 @@ api_router.include_router(accounts.router, prefix="/accounts", tags=["账户管�
 api_router.include_router(transactions.router, prefix="/transactions", tags=["交易记录"])
 api_router.include_router(budgets.router, prefix="/budgets", tags=["预算管理"])
 api_router.include_router(statistics.router, prefix="/statistics", tags=["统计分析"])
+api_router.include_router(reminders.router, prefix="/reminders", tags=["提醒管理"])
+api_router.include_router(reports.router, prefix="/reports", tags=["分析报告"])
+api_router.include_router(balance_history.router, prefix="/balance-history", tags=["余额历史"])
+api_router.include_router(ai.router, prefix="/ai", tags=["AI智能服务"])

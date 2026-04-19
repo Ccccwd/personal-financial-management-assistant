@@ -459,3 +459,100 @@ async def adjust_account_balance(
             "difference": float(difference)
         }
     )
+
+
+@router.get("/{account_id}/balance-history", response_model=Response)
+async def get_account_balance_history(
+    account_id: int,
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    change_type: Optional[str] = Query(None, description="变动类型过滤"),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    获取指定账户的余额变动历史
+
+    查询指定账户的交易记录作为余额变动历史。
+    """
+    # 验证账户存在
+    account = db.query(Account).filter(
+        Account.id == account_id,
+        Account.user_id == current_user.id
+    ).first()
+
+    if not account:
+        return Response(code=404, message="账户不存在", data=None)
+
+    # 构建查询
+    query = db.query(Transaction).filter(
+        Transaction.user_id == current_user.id,
+        Transaction.account_id == account_id
+    )
+
+    # 按变动类型过滤
+    if change_type:
+        query = query.filter(Transaction.type == change_type)
+
+    # 按时间倒序排序
+    query = query.order_by(Transaction.transaction_date.desc())
+
+    # 分页
+    total = query.count()
+    transactions = query.offset(offset).limit(limit).all()
+
+    # 构建返回数据
+    history_items = []
+    for t in transactions:
+        # 确定变动类型描述
+        type_desc = {
+            "income": "收入",
+            "expense": "支出",
+            "transfer": "转账",
+            "adjustment": "调整"
+        }.get(t.type, t.type)
+
+        # 获取转入账户信息（转账类型）
+        to_account = None
+        if t.to_account and t.type == "transfer":
+            to_account = {
+                "id": t.to_account.id,
+                "name": t.to_account.name,
+                "type": t.to_account.type
+            }
+
+        history_items.append({
+            "id": t.id,
+            "transaction_date": t.transaction_date.isoformat(),
+            "type": t.type,
+            "type_desc": type_desc,
+            "amount": float(t.amount),
+            "to_account": to_account,
+            "category": {
+                "id": t.category.id,
+                "name": t.category.name,
+                "icon": t.category.icon,
+                "color": t.category.color
+            } if t.category else None,
+            "remark": t.remark,
+            "merchant_name": t.merchant_name,
+            "source": t.source,
+            "created_at": t.created_at.isoformat() if t.created_at else None
+        })
+
+    return Response(
+        code=200,
+        message="success",
+        data={
+            "account": {
+                "id": account.id,
+                "name": account.name,
+                "type": account.type,
+                "current_balance": float(account.balance)
+            },
+            "items": history_items,
+            "total": total,
+            "limit": limit,
+            "offset": offset
+        }
+    )
