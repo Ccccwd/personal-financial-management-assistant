@@ -815,6 +815,156 @@
 					}
 				}
 			]
+		},
+		{
+			"name": "11. AI智能服务",
+			"item": [
+				{
+					"name": "11.1 智能分类",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('智能分类成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('返回分类结果', function() {",
+						"    pm.expect(res.data).to.have.property('results');",
+						"    pm.expect(res.data).to.have.property('total');",
+						"    pm.expect(res.data).to.have.property('llm_called_count');",
+						"    pm.expect(res.data).to.have.property('rule_matched_count');",
+						"});",
+						"pm.test('结果数组长度正确', function() {",
+						"    pm.expect(res.data.results.length).to.eql(3);",
+						"});",
+						"pm.test('规则匹配次数至少2次', function() {",
+						"    pm.expect(res.data.rule_matched_count).to.be.at.least(2);",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"items\": [\n    {\"merchant_name\": \"瑞幸咖啡\", \"product_name\": \"生椰拿铁\", \"amount\": 15.9, \"transaction_type\": \"expense\"},\n    {\"merchant_name\": \"滴滴出行\", \"product_name\": \"快车\", \"amount\": 25.0, \"transaction_type\": \"expense\"},\n    {\"merchant_name\": \"某某商店\", \"product_name\": \"未知商品\", \"amount\": 100.0, \"transaction_type\": \"expense\"}\n  ]\n}"},
+						"url": {"raw": "{{base_url}}/api/ai/classify", "host": ["{{base_url}}"], "path": ["api", "ai", "classify"]}
+					}
+				},
+				{
+					"name": "11.2 重新分类-预览",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('重新分类预览成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('包含分类信息', function() {",
+						"    pm.expect(res.data).to.have.property('category_name');",
+						"    pm.expect(res.data).to.have.property('confidence');",
+						"    pm.expect(res.data).to.have.property('matched_by');",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/ai/reclassify/{{transaction_id}}?dry_run=true", "host": ["{{base_url}}"], "path": ["api", "ai", "reclassify", "{{transaction_id}}"], "query": [{"key": "dry_run", "value": "true"}]}
+					}
+				},
+				{
+					"name": "11.3 重新分类-执行",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('重新分类执行成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('返回分类结果', function() {",
+						"    pm.expect(res.data).to.have.property('category_name');",
+						"    pm.expect(res.data).to.have.property('confidence');",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/ai/reclassify/{{transaction_id}}?dry_run=false", "host": ["{{base_url}}"], "path": ["api", "ai", "reclassify", "{{transaction_id}}"], "query": [{"key": "dry_run", "value": "false"}]}
+					}
+				},
+				{
+					"name": "11.4 获取理财建议",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('获取理财建议成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('包含建议内容', function() {",
+						"    pm.expect(res.data).to.have.property('advice');",
+						"    pm.expect(res.data.advice).to.have.property('highlights');",
+						"    pm.expect(res.data.advice).to.have.property('warnings');",
+						"    pm.expect(res.data.advice).to.have.property('suggestions');",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/ai/advice?months=3&force_refresh=true", "host": ["{{base_url}}"], "path": ["api", "ai", "advice"], "query": [{"key": "months", "value": "3"}, {"key": "force_refresh", "value": "true"}]}
+					}
+				},
+				{
+					"name": "11.5 获取历史建议列表",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('获取历史列表成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('返回分页数据', function() {",
+						"    pm.expect(res.data).to.have.property('items');",
+						"    pm.expect(res.data).to.have.property('total');",
+						"    pm.expect(res.data).to.have.property('page');",
+						"});",
+						"if (res.data.items && res.data.items.length > 0) {",
+						"    pm.environment.set('advice_record_id', res.data.items[0].id);",
+						"}"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/ai/advice/history?page=1&page_size=10", "host": ["{{base_url}}"], "path": ["api", "ai", "advice", "history"], "query": [{"key": "page", "value": "1"}, {"key": "page_size", "value": "10"}]}
+					}
+				},
+				{
+					"name": "11.6 获取建议详情",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('获取建议详情成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('包含完整报告', function() {",
+						"    pm.expect(res.data).to.have.property('full_report');",
+						"    pm.expect(res.data).to.have.property('highlights');",
+						"    pm.expect(res.data).to.have.property('warnings');",
+						"    pm.expect(res.data).to.have.property('suggestions');",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/ai/advice/history/{{advice_record_id}}", "host": ["{{base_url}}"], "path": ["api", "ai", "advice", "history", "{{advice_record_id}}"]}
+					}
+				},
+				{
+					"name": "11.7 获取用量统计",
+					"event": [{"listen": "test", "script": {"exec": [
+						"var res = pm.response.json();",
+						"pm.test('获取用量统计成功', function() {",
+						"    pm.expect(res.code).to.eql(200);",
+						"});",
+						"pm.test('包含统计数据', function() {",
+						"    pm.expect(res.data).to.have.property('month');",
+						"    pm.expect(res.data).to.have.property('advice_calls');",
+						"    pm.expect(res.data).to.have.property('total_tokens_used');",
+						"});"
+					], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{base_url}}/api/ai/usage?year=2026&month=4", "host": ["{{base_url}}"], "path": ["api", "ai", "usage"], "query": [{"key": "year", "value": "2026"}, {"key": "month", "value": "4"}]}
+					}
+				}
+			]
 		}
 	]
 }
