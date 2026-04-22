@@ -119,7 +119,7 @@
         </div>
       </template>
       <div class="action-buttons">
-         <el-button type="primary" size="large" :icon="Edit" @click="$router.push('/add')">记一笔</el-button>
+         <el-button type="primary" size="large" :icon="Edit" @click="$router.push('/transactions/add')">记一笔</el-button>
          <el-button size="large" :icon="DataLine" @click="$router.push('/statistics')">查看报表</el-button>
          <el-button size="large" :icon="Calendar" @click="$router.push('/budget')">预算设置</el-button>
          <el-button size="large" :icon="Upload" @click="$router.push('/import')">导入账单</el-button>
