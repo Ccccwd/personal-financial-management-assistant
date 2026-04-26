@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from . import auth, health, categories, accounts, transactions, budgets, statistics, reminders, reports, balance_history, ai
+from . import auth, health, categories, accounts, transactions, budgets, statistics, reminders, reports, balance_history, ai, wechat_bill
 
 api_router = APIRouter()
 
@@ -15,3 +15,4 @@ api_router.include_router(reminders.router, prefix="/reminders", tags=["提醒�
 api_router.include_router(reports.router, prefix="/reports", tags=["分析报告"])
 api_router.include_router(balance_history.router, prefix="/balance-history", tags=["余额历史"])
 api_router.include_router(ai.router, prefix="/ai", tags=["AI智能服务"])
+api_router.include_router(wechat_bill.router, prefix="/wechat", tags=["微信账单导入"])
