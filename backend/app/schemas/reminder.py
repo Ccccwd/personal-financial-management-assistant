@@ -1,10 +1,10 @@
 """
 提醒相关 Schema
 """
-from typing import Optional
-from datetime import datetime
+from typing import Optional, Union
+from datetime import datetime, time
 from decimal import Decimal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ReminderBase(BaseModel):
@@ -12,7 +12,7 @@ class ReminderBase(BaseModel):
     type: str = Field(..., description="提醒类型: daily/budget/recurring/report")
     title: str = Field(..., min_length=1, max_length=100, description="提醒标题")
     content: Optional[str] = Field(None, max_length=500, description="提醒内容")
-    remind_time: Optional[str] = Field(None, description="提醒时间 格式: HH:MM:SS")
+    remind_time: Optional[Union[str, time]] = Field(None, description="提醒时间 格式: HH:MM:SS")
     remind_day: Optional[int] = Field(None, ge=1, le=31, description="提醒日期(1-31)")
     category_id: Optional[int] = Field(None, description="分类ID")
     amount: Optional[Decimal] = Field(None, ge=0, description="金额阈值")
