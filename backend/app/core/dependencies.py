@@ -7,7 +7,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from app.config.database import get_db
-from app.core.security import verify_token
+from app.core.security import verify_token, is_blacklisted
 from app.models.user import User
 
 # HTTP Bearer 认证方案
@@ -27,6 +27,15 @@ def get_current_user(
         )
 
     token = credentials.credentials
+
+    # 检查 Token 是否在黑名单中
+    if is_blacklisted(token):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="令牌已失效，请重新登录",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     payload = verify_token(token)
 
     if payload is None:
