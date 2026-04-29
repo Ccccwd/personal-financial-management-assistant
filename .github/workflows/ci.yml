@@ -18,7 +18,9 @@ jobs:
           node-version: "20"
 
       - name: 安装前端依赖
-        run: npm install --prefix frontend
+        run: |
+          rm -f frontend/package-lock.json
+          npm install --prefix frontend
 
       - name: Lint 检查（ESLint）
         run: npm run lint --prefix frontend
