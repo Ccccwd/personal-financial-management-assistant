@@ -76,13 +76,14 @@
 
 ## PR 链接
 
-（提交后补充）
+- PR #11: https://github.com/Ccccwd/personal-financial-management-assistant/pull/11 （feature/曾昭祥-frontend-doc → dev）
+- PR #12: https://github.com/Ccccwd/personal-financial-management-assistant/pull/12 （dev → main）
 
 ---
 
 ## CI 运行链接
 
-（CI 运行成功后补充）
+- https://github.com/Ccccwd/personal-financial-management-assistant/actions （CI 工作流合并到 main 后自动触发）
 
 ---
 
