@@ -110,6 +110,13 @@
 | @vitest/coverage-v8 | 2.1.9 | V8 代码覆盖率收集 |
 | jsdom | ^26.1.0 | 测试环境 DOM 模拟 |
 
+## PR 链接
+
+- PR #9: https://github.com/Ccccwd/personal-financial-management-assistant/pull/9 （feature/曾昭祥-frontend-doc → dev）
+- PR #10: https://github.com/Ccccwd/personal-financial-management-assistant/pull/10 （dev → main）
+
+---
+
 ## 遇到的问题和解决
 
 1. **问题**：Vitest 最新版（3.x）使用 rolldown，在 Windows 上缺少 native binding 导致启动失败。

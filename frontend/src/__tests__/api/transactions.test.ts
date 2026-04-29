@@ -9,7 +9,7 @@
  * 不应直接断言 mock 返回值本身（循环断言），
  * 而应断言"调用 API 的函数/组件"的行为变化。
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 
 vi.mock('@/api/transactions', () => ({
@@ -75,6 +75,11 @@ async function simulateSummaryLoad(params: Record<string, unknown> = {}) {
 describe('交易列表加载 - Mock API 测试', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   it('1. 成功态：加载完成后 loading 变为 false，data 有内容', async () => {
@@ -134,6 +139,11 @@ describe('交易列表加载 - Mock API 测试', () => {
 describe('创建交易 - Mock API 测试', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   it('5. 成功态：创建成功后 success 为 true，created 有内容', async () => {
@@ -180,6 +190,11 @@ describe('创建交易 - Mock API 测试', () => {
 describe('统计摘要处理 - Mock API 测试', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   it('8. 成功态：从 API 响应中正确提取并分配 income/expense/net 字段', async () => {
@@ -222,6 +237,11 @@ describe('认证 Store - Mock API 状态流转测试', () => {
     setActivePinia(createPinia())
     localStorage.clear()
     vi.clearAllMocks()
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   it('10. 成功态：login API 成功后 Store 的 isLoggedIn 变为 true', async () => {
