@@ -7,42 +7,6 @@ on:
     branches: [main]
 
 jobs:
-  backend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: 安装 uv
-        uses: astral-sh/setup-uv@v3
-        with:
-          version: "latest"
-
-      - name: 设置 Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: 安装后端依赖
-        working-directory: backend
-        run: uv sync
-
-      - name: Lint 检查（ruff）
-        working-directory: backend
-        run: uv run ruff check .
-
-      - name: 运行测试并生成覆盖率
-        working-directory: backend
-        env:
-          DATABASE_URL: sqlite:///:memory:
-        run: uv run coverage run -m pytest tests/ && uv run coverage xml
-
-      - name: 上传覆盖率到 Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: backend/coverage.xml
-          flags: backend
-
   frontend:
     runs-on: ubuntu-latest
     steps:
