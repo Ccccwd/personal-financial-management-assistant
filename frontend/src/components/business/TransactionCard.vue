@@ -41,7 +41,7 @@
 import { PropType } from 'vue'
 import dayjs from 'dayjs'
 
-const props = defineProps({
+defineProps({
   transaction: {
     type: Object as PropType<any>,
     required: true

@@ -2,7 +2,6 @@ import { Token } from '@/types'
 
 const TOKEN_KEY = 'finance_token'
 const REFRESH_TOKEN_KEY = 'finance_refresh_token'
-const USER_KEY = 'finance_user'
 
 export class TokenManager {
   static setToken(token: Token): void {
