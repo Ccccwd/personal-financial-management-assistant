@@ -84,7 +84,6 @@ import {
   Odometer,
   List,
   CreditCard,
-  CirclePlus,
   DataLine,
   Calendar,
   User,

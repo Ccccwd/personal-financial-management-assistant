@@ -115,8 +115,6 @@ import { useUserStore } from '@/stores/user'
 import { updateCurrentUser, changePassword } from '@/api/auth'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules, UploadFile } from 'element-plus'
-import dayjs from 'dayjs'
-
 const userStore = useUserStore()
 const profileFormRef = ref<FormInstance>()
 const passwordFormRef = ref<FormInstance>()

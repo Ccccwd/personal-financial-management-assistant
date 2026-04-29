@@ -1,4 +1,3 @@
-import { BaseEntity } from './common'
 
 export interface ReportMonthly {
   year: number
