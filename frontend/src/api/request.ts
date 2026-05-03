@@ -26,7 +26,7 @@ service.interceptors.request.use(
 
 // Response interceptor
 service.interceptors.response.use(
-  (response: AxiosResponse) => {
+  (response: AxiosResponse): any => {
     const res = response.data as APIResponse
     
     // Check custom code from backend
@@ -39,9 +39,22 @@ service.interceptors.response.use(
     // This allows calling api like: const data = await api.getData()
     return res.data
   },
-  (error: AxiosError) => {
+  async (error: AxiosError) => {
     console.error('Response error:', error)
-    ElMessage.error(error.message || 'Request failed')
+    
+    if (error.response && error.response.status === 401) {
+      // Handle unauthorized error (token expired or invalid)
+      TokenManager.removeToken()
+      
+      // Prevent redirecting if already on login page
+      if (window.location.pathname !== '/login') {
+        ElMessage.error('登录状态已失效，请重新登录')
+        window.location.href = '/login'
+      }
+    } else {
+      ElMessage.error(error.message || 'Request failed')
+    }
+    
     return Promise.reject(error)
   }
 )

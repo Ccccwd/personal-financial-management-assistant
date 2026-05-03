@@ -101,6 +101,10 @@ frontend/.nuxt/
 frontend/.output/
 .vite/
 
+# 测试覆盖率报告
+frontend/coverage/
+frontend/.pytest_cache/
+
 # 缓存
 .eslintcache
 .stylelintcache

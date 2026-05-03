@@ -12,4 +12,4 @@ export * from './ai'
 
 // Re-export common types
 export type { User, UserResponse, UserCreate, UserLogin, Token, LoginData } from './user'
-export type { APIResponse, PaginationInfo, PaginatedResponse, ErrorResponse, BaseEntity } from './common'
+export type { APIResponse, ErrorResponse, BaseEntity } from './common'

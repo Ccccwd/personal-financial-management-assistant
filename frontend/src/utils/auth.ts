@@ -2,12 +2,15 @@ import { Token } from '@/types'
 
 const TOKEN_KEY = 'finance_token'
 const REFRESH_TOKEN_KEY = 'finance_refresh_token'
-const USER_KEY = 'finance_user'
 
 export class TokenManager {
   static setToken(token: Token): void {
-    localStorage.setItem(TOKEN_KEY, token.access_token)
-    localStorage.setItem(REFRESH_TOKEN_KEY, token.refresh_token)
+    if (token.access_token) {
+      localStorage.setItem(TOKEN_KEY, token.access_token)
+    }
+    if (token.refresh_token) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, token.refresh_token)
+    }
   }
 
   static getAccessToken(): string | null {

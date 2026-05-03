@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main]
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 设置 Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: 安装前端依赖
+        run: |
+          rm -f frontend/package-lock.json
+          npm install --prefix frontend
+
+      - name: Lint 检查（ESLint）
+        run: npm run lint --prefix frontend
+
+      - name: 运行测试并生成覆盖率
+        run: npm test --prefix frontend
+        env:
+          VITE_API_URL: http://localhost:8000
+
+      - name: 上传覆盖率到 Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: frontend/coverage/lcov.info
+          flags: frontend

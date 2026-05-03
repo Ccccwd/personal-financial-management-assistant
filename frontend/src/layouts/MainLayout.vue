@@ -16,20 +16,37 @@
           <el-icon><Odometer /></el-icon>
           <span>仪表盘</span>
         </el-menu-item>
-        <!-- Temporary disabled other menu items
         <el-menu-item index="/transactions">
           <el-icon><List /></el-icon>
           <span>交易记录</span>
         </el-menu-item>
-        ...
-        -->
+        <el-menu-item index="/accounts">
+          <el-icon><CreditCard /></el-icon>
+          <span>账户管理</span>
+        </el-menu-item>
+        <el-menu-item index="/budgets">
+          <el-icon><Calendar /></el-icon>
+          <span>预算管理</span>
+        </el-menu-item>
+        <el-menu-item index="/statistics">
+          <el-icon><DataLine /></el-icon>
+          <span>统计分析</span>
+        </el-menu-item>
+        <el-menu-item index="/import">
+          <el-icon><Upload /></el-icon>
+          <span>数据导入</span>
+        </el-menu-item>
+        <el-menu-item index="/settings">
+          <el-icon><User /></el-icon>
+          <span>个人设置</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     
     <el-container>
       <el-header class="layout-header">
         <div class="header-left">
-          <!-- 可以在这里放面包屑 -->
+          
         </div>
         <div class="header-right">
           <el-dropdown>
@@ -40,7 +57,7 @@
             </span>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item>个人设置</el-dropdown-item>
+                <el-dropdown-item @click="router.push('/settings')">个人设置</el-dropdown-item>
                 <el-dropdown-item divided @click="handleLogout">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -66,7 +83,7 @@ import { useUserStore } from '@/stores/user'
 import {
   Odometer,
   List,
-  CirclePlus,
+  CreditCard,
   DataLine,
   Calendar,
   User,

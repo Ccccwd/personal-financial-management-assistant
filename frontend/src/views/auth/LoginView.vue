@@ -21,25 +21,29 @@
         >
           <el-form-item prop="username">
             <el-input 
+              name="username"
               v-model="loginForm.username" 
               placeholder="请输入用户名" 
               :prefix-icon="User"
+              autocomplete="off"
             />
           </el-form-item>
           
           <el-form-item prop="password">
             <el-input 
+              name="password"
               v-model="loginForm.password" 
               type="password" 
               placeholder="请输入密码" 
               :prefix-icon="Lock"
               show-password
+              autocomplete="new-password"
             />
           </el-form-item>
           
           <div class="form-options">
             <el-checkbox v-model="rememberMe">记住我</el-checkbox>
-            <el-link type="primary" underline="never">忘记密码？</el-link>
+            <el-link type="primary" underline="never" @click="router.push('/forgot-password')">忘记密码？</el-link>
           </div>
 
           <el-form-item>
