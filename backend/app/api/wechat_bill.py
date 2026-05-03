@@ -8,7 +8,6 @@ import base64
 
 from app.config.database import get_db
 from app.schemas.common import Response
-from app.schemas.wechat_bill import ImportPreview
 from app.models.user import User
 from app.models.import_log import ImportLog
 from app.core.dependencies import get_current_active_user
@@ -116,7 +115,7 @@ async def import_bill_base64(
         encoding = bill_service._detect_encoding(file_bytes)
         csv_content = file_bytes.decode(encoding, errors='replace')
 
-        preview = bill_service.parse_csv_content(csv_content)
+        bill_service.parse_csv_content(csv_content)
 
         # 完整解析获取所有记录
         full_preview = bill_service.parse_csv_content(csv_content)

@@ -1,7 +1,7 @@
 """
 交易记录模型
 """
-from sqlalchemy import Column, Integer, String, Numeric, Boolean, DateTime, ForeignKey, JSON, Text
+from sqlalchemy import Column, Integer, String, Numeric, Boolean, DateTime, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from app.config.database import Base, TimestampMixin
 

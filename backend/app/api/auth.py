@@ -1,7 +1,7 @@
 """
 认证接口
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from datetime import timedelta
 
@@ -17,7 +17,7 @@ from app.models.user import User
 from app.core.security import (
     verify_password, get_password_hash, create_access_token,
     create_refresh_token, verify_refresh_token,
-    add_to_blacklist, create_password_reset_token, verify_password_reset_token
+    create_password_reset_token, verify_password_reset_token
 )
 from app.core.dependencies import get_current_active_user
 

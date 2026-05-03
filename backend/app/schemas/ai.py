@@ -2,7 +2,7 @@
 AI 服务相关 Schema
 """
 from datetime import datetime
-from typing import Optional, List, Any
+from typing import Optional, List
 from pydantic import BaseModel, Field
 
 

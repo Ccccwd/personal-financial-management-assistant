@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from decimal import Decimal
 from datetime import datetime, timedelta
-from typing import Optional
 import calendar
 
 from app.config.database import get_db

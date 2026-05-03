@@ -2,11 +2,45 @@ name: CI
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main, dev, develop]
   pull_request:
     branches: [main]
 
 jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 设置 Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安装 uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: 安装后端依赖
+        run: uv sync
+
+      - name: Lint 检查（ruff）
+        run: uv run ruff check app/
+
+      - name: 运行测试并生成覆盖率
+        run: uv run pytest tests/ -v --cov=app --cov-report=xml
+        env:
+          DATABASE_URL: sqlite:///./test.db
+
+      - name: 上传覆盖率到 Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: backend/coverage.xml
+          flags: backend
+
   frontend:
     runs-on: ubuntu-latest
     steps:

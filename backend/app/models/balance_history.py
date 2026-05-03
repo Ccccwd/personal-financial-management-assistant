@@ -1,7 +1,7 @@
 """
 余额历史模型
 """
-from sqlalchemy import Column, Integer, String, Numeric, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Numeric, ForeignKey
 from sqlalchemy.orm import relationship
 from app.config.database import Base, TimestampMixin
 

@@ -67,7 +67,7 @@ async def get_account_summary(
     """
     accounts = db.query(Account).filter(
         Account.user_id == current_user.id,
-        Account.is_enabled == True
+        Account.is_enabled
     ).all()
 
     total_balance = sum(float(a.balance) for a in accounts)
@@ -110,15 +110,15 @@ async def get_default_account(
     # 优先查找默认账户
     account = db.query(Account).filter(
         Account.user_id == current_user.id,
-        Account.is_default == True,
-        Account.is_enabled == True
+        Account.is_default,
+        Account.is_enabled
     ).first()
 
     # 如果没有默认账户，返回第一个启用的账户
     if not account:
         account = db.query(Account).filter(
             Account.user_id == current_user.id,
-            Account.is_enabled == True
+            Account.is_enabled
         ).first()
 
     if not account:
@@ -198,7 +198,7 @@ async def create_account(
     if account_data.is_default:
         db.query(Account).filter(
             Account.user_id == current_user.id,
-            Account.is_default == True
+            Account.is_default
         ).update({"is_default": False})
 
     account = Account(
@@ -248,7 +248,7 @@ async def update_account(
     if account_data.is_default:
         db.query(Account).filter(
             Account.user_id == current_user.id,
-            Account.is_default == True,
+            Account.is_default,
             Account.id != account_id
         ).update({"is_default": False})
 

@@ -1,1 +1,1 @@
-from .common import Response
+from .common import Response as Response

@@ -1,7 +1,7 @@
 """
 数据库配置模块
 """
-from sqlalchemy import create_engine, Column, Integer, DateTime
+from sqlalchemy import create_engine, Column, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from datetime import datetime

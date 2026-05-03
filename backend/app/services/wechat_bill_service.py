@@ -4,14 +4,13 @@
 import csv
 import io
 import re
-import base64
 from datetime import datetime
-from typing import List, Dict, Any, Tuple, Optional
+from typing import List, Dict, Any, Optional
 from decimal import Decimal, InvalidOperation
 import chardet
 
 from app.schemas.wechat_bill import (
-    ImportPreview, ImportErrorDetail, ValidateResponse
+    ImportPreview, ValidateResponse
 )
 
 
@@ -191,7 +190,7 @@ class WeChatBillService:
         if not account_id:
             account = db.query(Account).filter(
                 Account.user_id == user_id,
-                Account.is_default == True
+                Account.is_default
             ).first()
             if not account:
                 account = db.query(Account).filter(

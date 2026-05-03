@@ -144,7 +144,7 @@ class AIService:
         """
         # 获取用户的分类列表
         categories = db.query(Category).filter(
-            (Category.user_id == user_id) | (Category.is_system == True),
+            (Category.user_id == user_id) | (Category.is_system),
             Category.type == "expense"
         ).all()
 
@@ -215,7 +215,7 @@ class AIService:
             print(f"LLM 分类失败: {str(e)}")
             # 找到"其他"分类
             other_category = db.query(Category).filter(
-                (Category.user_id == user_id) | (Category.is_system == True),
+                (Category.user_id == user_id) | (Category.is_system),
                 Category.name == "其他",
                 Category.type == "expense"
             ).first()
@@ -280,7 +280,6 @@ class AIService:
                 llm_items.append((i, item))
 
         # 第二轮：LLM 分类
-        llm_results = []
         llm_called_count = 0
 
         if llm_items:
@@ -406,7 +405,7 @@ class AIService:
             AIAdviceRecord.user_id == user.id,
             AIAdviceRecord.analysis_period_start >= start_date,
             AIAdviceRecord.analysis_period_end <= end_date,
-            AIAdviceRecord.from_cache == False
+            not AIAdviceRecord.from_cache
         ).order_by(AIAdviceRecord.created_at.desc()).first()
 
         if cached:

@@ -1,8 +1,7 @@
 """
 导入日志模型
 """
-from sqlalchemy import Column, Integer, String, DateTime, JSON, Text, Enum as SQLEnum
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, JSON, Text
 from app.config.database import Base, TimestampMixin
 import enum
 

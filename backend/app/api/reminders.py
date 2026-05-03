@@ -3,7 +3,7 @@
 """
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from datetime import datetime, time
+from datetime import datetime
 from typing import Optional
 
 from app.config.database import get_db
@@ -54,7 +54,7 @@ async def get_reminder_statistics(
     total = db.query(Reminder).filter(Reminder.user_id == current_user.id).count()
     enabled = db.query(Reminder).filter(
         Reminder.user_id == current_user.id,
-        Reminder.is_enabled == True
+        Reminder.is_enabled
     ).count()
     disabled = total - enabled
 
@@ -80,7 +80,7 @@ async def check_today_reminders(
 
     query = db.query(Reminder).filter(
         Reminder.user_id == current_user.id,
-        Reminder.is_enabled == True
+        Reminder.is_enabled
     )
 
     reminders = query.all()
