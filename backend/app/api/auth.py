@@ -11,7 +11,7 @@ from app.schemas.common import Response
 from app.schemas.user import (
     UserCreate, UserLogin, UserResponse, TokenResponse,
     UserUpdate, ChangePasswordRequest, PasswordResetRequest,
-    PasswordReset, ResetPassword
+    PasswordReset
 )
 from app.models.user import User
 from app.core.security import (
@@ -256,22 +256,3 @@ async def password_reset(
     )
 
 
-@router.post("/reset-password", response_model=Response[None])
-async def reset_password(
-    reset_data: ResetPassword,
-    db: Session = Depends(get_db)
-):
-    """直接重置密码（无需令牌）"""
-    user = db.query(User).filter(User.email == reset_data.email).first()
-    if not user:
-        return Response(code=404, message="邮箱未注册", data=None)
-
-    # 更新密码
-    user.password_hash = get_password_hash(reset_data.new_password)
-    db.commit()
-
-    return Response(
-        code=200,
-        message="密码重置成功",
-        data=None
-    )

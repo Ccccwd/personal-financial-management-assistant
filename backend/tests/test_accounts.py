@@ -1,8 +1,6 @@
 """
 账户管理接口测试
 """
-import pytest
-from decimal import Decimal
 
 
 class TestCreateAccount:

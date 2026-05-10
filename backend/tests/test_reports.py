@@ -1,7 +1,6 @@
 """
 分析报告 API 接口测试
 """
-import pytest
 
 
 class TestMonthlyReport:

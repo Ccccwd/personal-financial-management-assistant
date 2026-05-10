@@ -146,7 +146,12 @@ async def get_transactions(
         start_date, end_date, keyword, min_amount, max_amount
     )
 
-    # 排序
+    # 排序（限制允许的排序字段）
+    ALLOWED_SORT_FIELDS = {
+        "transaction_date", "amount", "created_at", "type"
+    }
+    if sort_by not in ALLOWED_SORT_FIELDS:
+        sort_by = "transaction_date"
     sort_column = getattr(Transaction, sort_by, Transaction.transaction_date)
     if sort_order == "asc":
         query = query.order_by(sort_column.asc())

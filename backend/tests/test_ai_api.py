@@ -2,9 +2,7 @@
 AI 智能服务 API 接口测试
 使用 Mock 隔离 LLM 调用
 """
-import pytest
-from unittest.mock import patch, MagicMock
-import json
+from unittest.mock import patch
 
 
 class TestAIClassify:

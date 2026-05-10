@@ -66,6 +66,8 @@ def verify_token(token: str) -> Optional[dict]:
 
 def verify_refresh_token(token: str) -> Optional[dict]:
     """验证刷新令牌"""
+    if is_blacklisted(token):
+        return None
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         # 检查是否为刷新令牌类型

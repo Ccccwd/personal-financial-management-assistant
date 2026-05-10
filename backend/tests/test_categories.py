@@ -1,7 +1,6 @@
 """
 分类管理接口测试
 """
-import pytest
 
 
 class TestCategoriesEmpty:
