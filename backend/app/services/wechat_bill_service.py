@@ -116,8 +116,9 @@ class WeChatBillService:
 
     def import_transactions(self, db, user_id: int, transactions: List[dict],
                            account_id: Optional[int] = None,
-                           category_id: Optional[int] = None) -> dict:
-        """批量导入交易记录到数据库"""
+                           category_id: Optional[int] = None,
+                           auto_classify: bool = True) -> dict:
+        """批量导入交易记录到数据库，可选自动 AI 分类"""
         from app.models.transaction import Transaction
         from app.models.account import Account
         from app.models.import_log import ImportLog, ImportStatus
@@ -136,6 +137,7 @@ class WeChatBillService:
         failed_count = 0
         skipped_count = 0
         errors = []
+        imported_transactions = []
 
         if not account_id:
             account = db.query(Account).filter(
@@ -185,6 +187,7 @@ class WeChatBillService:
                 )
                 db.add(transaction)
                 success_count += 1
+                imported_transactions.append(transaction)
 
             except Exception as e:
                 failed_count += 1
@@ -192,12 +195,24 @@ class WeChatBillService:
 
         db.commit()
 
+        # 刷新获取 id
+        for t in imported_transactions:
+            db.refresh(t)
+
+        # 自动 AI 分类
+        classified_count = 0
+        if auto_classify and imported_transactions:
+            classified_count = self._auto_classify_imported(db, user_id, imported_transactions)
+
         import_log.success_records = success_count
         import_log.failed_records = failed_count
         import_log.skipped_records = skipped_count
         import_log.error_details = errors if errors else None
         import_log.status = ImportStatus.COMPLETED if failed_count == 0 else ImportStatus.PARTIAL
-        import_log.import_summary = f"成功{success_count}条，跳过{skipped_count}条，失败{failed_count}条"
+        summary = f"成功{success_count}条，跳过{skipped_count}条，失败{failed_count}条"
+        if classified_count > 0:
+            summary += f"，AI分类{classified_count}条"
+        import_log.import_summary = summary
         db.commit()
 
         return {
@@ -205,8 +220,73 @@ class WeChatBillService:
             "success_count": success_count,
             "failed_count": failed_count,
             "skipped_count": skipped_count,
+            "classified_count": classified_count,
             "total": len(transactions),
         }
+
+    def _auto_classify_imported(self, db, user_id: int, transactions: list) -> int:
+        """对导入的交易记录自动分类：LLM 优先 → 规则匹配兜底 → "其他"保底"""
+        from app.models.category import Category
+        from app.services.ai_service import AIService
+
+        ai_service = AIService()
+        classified_count = 0
+
+        for transaction in transactions:
+            if transaction.category_id is not None:
+                continue
+
+            merchant_name = transaction.merchant_name or ""
+            description = transaction.remark or ""
+            matched_category_id = None
+            matched_by = None
+
+            # 第一优先：LLM 分类
+            try:
+                items = [{
+                    "merchant_name": merchant_name,
+                    "product_name": description,
+                    "amount": float(transaction.amount),
+                    "transaction_type": transaction.type,
+                }]
+                results = ai_service.classify_by_llm(db, user_id, items)
+                if results and len(results) > 0:
+                    matched_category_id = results[0].get("category_id")
+                    matched_by = "llm"
+            except Exception:
+                pass
+
+            # 第二优先：规则匹配兜底
+            if matched_category_id is None:
+                matched_category_name = ai_service._match_by_rules(merchant_name, transaction.type)
+                if matched_category_name:
+                    category = ai_service._find_category_by_name(
+                        db, user_id, matched_category_name, transaction.type
+                    )
+                    if category:
+                        matched_category_id = category.id
+                        matched_by = "rule"
+
+            # 第三优先：分到"其他"
+            if matched_category_id is None:
+                fallback = db.query(Category).filter(
+                    (Category.user_id == user_id) | (Category.is_system),
+                    Category.name == "其他",
+                    Category.type == transaction.type,
+                ).first()
+                if fallback:
+                    matched_category_id = fallback.id
+                    matched_by = "fallback"
+
+            if matched_category_id is not None:
+                transaction.category_id = matched_category_id
+                transaction.ai_classified = matched_by in ("llm", "rule")
+                classified_count += 1
+
+        if classified_count > 0:
+            db.commit()
+
+        return classified_count
 
     # ---- 内部方法 ----
 
