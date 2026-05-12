@@ -125,7 +125,7 @@ class TestAccountSummary:
 
     def test_get_account_summary_multiple_accounts(self, client, auth_headers):
         """多个账户的统计摘要"""
-        # 创建多个账户
+        # 注册时已创建一个默认账户（余额0），再创建2个
         client.post("/api/accounts", headers=auth_headers, json={
             "name": "现金",
             "type": "cash",
@@ -141,7 +141,7 @@ class TestAccountSummary:
         assert response.status_code == 200
 
         data = response.json()
-        assert data["data"]["total_accounts"] == 2
+        assert data["data"]["total_accounts"] == 3
         assert float(data["data"]["total_balance"]) == 2500.00
 
 
@@ -158,29 +158,22 @@ class TestDefaultAccount:
         assert data["data"]["is_default"] is True
 
     def test_get_default_account_no_default(self, client, auth_headers):
-        """没有设置默认账户时返回第一个启用的账户"""
-        # 创建非默认账户
-        client.post("/api/accounts", headers=auth_headers, json={
-            "name": "普通账户",
-            "type": "cash",
-            "initial_balance": "100.00",
-            "is_default": False
-        })
-
+        """获取默认账户（注册时已自动创建）"""
         response = client.get("/api/accounts/default", headers=auth_headers)
         assert response.status_code == 200
 
         data = response.json()
         assert data["code"] == 200
-        assert data["data"]["name"] == "普通账户"
+        assert data["data"]["is_default"] is True
 
-    def test_get_default_account_no_accounts(self, client, auth_headers):
-        """没有账户时返回404"""
+    def test_get_default_account_exists(self, client, auth_headers):
+        """注册后默认账户已存在"""
         response = client.get("/api/accounts/default", headers=auth_headers)
         assert response.status_code == 200
 
         data = response.json()
-        assert data["code"] == 404
+        assert data["code"] == 200
+        assert data["data"]["name"] == "默认账户"
 
 
 class TestTransfer:

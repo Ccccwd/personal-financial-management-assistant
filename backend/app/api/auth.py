@@ -14,6 +14,8 @@ from app.schemas.user import (
     PasswordReset
 )
 from app.models.user import User
+from app.models.category import Category
+from app.models.account import Account
 from app.core.security import (
     verify_password, get_password_hash, create_access_token,
     create_refresh_token, verify_refresh_token,
@@ -22,6 +24,70 @@ from app.core.security import (
 from app.core.dependencies import get_current_active_user
 
 router = APIRouter()
+
+
+# 预设系统分类（支出 + 收入）
+DEFAULT_EXPENSE_CATEGORIES = [
+    {"name": "餐饮", "icon": "🍔", "color": "#FF6B6B"},
+    {"name": "交通", "icon": "🚗", "color": "#4ECDC4"},
+    {"name": "购物", "icon": "🛒", "color": "#45B7D1"},
+    {"name": "娱乐", "icon": "🎮", "color": "#96CEB4"},
+    {"name": "医疗", "icon": "🏥", "color": "#FFEAA7"},
+    {"name": "教育", "icon": "📚", "color": "#DDA0DD"},
+    {"name": "住房", "icon": "🏠", "color": "#98D8C8"},
+    {"name": "通讯", "icon": "📱", "color": "#F7DC6F"},
+    {"name": "金融", "icon": "💰", "color": "#82E0AA"},
+    {"name": "其他", "icon": "📝", "color": "#BDC3C7"},
+]
+
+DEFAULT_INCOME_CATEGORIES = [
+    {"name": "工资", "icon": "💰", "color": "#27AE60"},
+    {"name": "奖金", "icon": "🎁", "color": "#2ECC71"},
+    {"name": "理财收益", "icon": "📈", "color": "#1ABC9C"},
+    {"name": "兼职", "icon": "💼", "color": "#3498DB"},
+    {"name": "红包", "icon": "🧧", "color": "#E74C3C"},
+    {"name": "退款", "icon": "↩️", "color": "#9B59B6"},
+    {"name": "其他收入", "icon": "📝", "color": "#BDC3C7"},
+]
+
+
+def _init_user_defaults(db: Session, user_id: int):
+    """为新用户初始化默认分类和账户"""
+    # 创建支出分类
+    for i, cat in enumerate(DEFAULT_EXPENSE_CATEGORIES):
+        db.add(Category(
+            user_id=user_id,
+            name=cat["name"],
+            type="expense",
+            icon=cat["icon"],
+            color=cat["color"],
+            is_system=True,
+            sort_order=i,
+        ))
+
+    # 创建收入分类
+    for i, cat in enumerate(DEFAULT_INCOME_CATEGORIES):
+        db.add(Category(
+            user_id=user_id,
+            name=cat["name"],
+            type="income",
+            icon=cat["icon"],
+            color=cat["color"],
+            is_system=True,
+            sort_order=i,
+        ))
+
+    # 创建默认账户
+    db.add(Account(
+        user_id=user_id,
+        name="默认账户",
+        type="cash",
+        initial_balance=0,
+        balance=0,
+        is_default=True,
+    ))
+
+    db.commit()
 
 
 @router.post("/register", response_model=Response[dict])
@@ -46,6 +112,9 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
+
+    # 初始化默认分类和账户
+    _init_user_defaults(db, user.id)
 
     return Response(
         code=200,

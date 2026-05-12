@@ -1,5 +1,6 @@
 """
 微信账单导入接口
+支持 CSV 和 XLSX 两种格式
 """
 from fastapi import APIRouter, Depends, Query, UploadFile, File, Form
 from sqlalchemy.orm import Session
@@ -16,32 +17,34 @@ from app.services.wechat_bill_service import WeChatBillService
 router = APIRouter()
 bill_service = WeChatBillService()
 
+ALLOWED_EXTENSIONS = {'.csv', '.xlsx'}
+
 
 @router.post("/preview", response_model=Response)
 async def preview_bill(
-    file: UploadFile = File(..., description="微信账单CSV文件"),
+    file: UploadFile = File(..., description="微信账单文件（CSV/XLSX）"),
     current_user: User = Depends(get_current_active_user),
 ):
     """
     预览账单文件
 
-    上传微信账单CSV文件，解析后返回预览数据（前10条）和统计摘要。
+    上传微信账单文件（CSV 或 XLSX），解析后返回预览数据（前10条）和统计摘要。
     """
-    if not file.filename or not file.filename.lower().endswith('.csv'):
-        return Response(code=400, message="请上传CSV格式文件", data=None)
+    if not file.filename:
+        return Response(code=400, message="文件名为空", data=None)
+
+    ext = '.' + file.filename.lower().split('.')[-1]
+    if ext not in ALLOWED_EXTENSIONS:
+        return Response(code=400, message="请上传 CSV 或 XLSX 格式文件", data=None)
 
     try:
         content = await file.read()
-        encoding = bill_service._detect_encoding(content)
-        csv_content = content.decode(encoding, errors='replace')
-
-        preview = bill_service.parse_csv_content(csv_content)
-        preview.filename = file.filename
+        preview = bill_service.parse_file(content, file.filename, preview_only=True)
 
         return Response(
             code=200,
             message="success",
-            data=preview.model_dump()
+            data=preview.model_dump(exclude={"all_transactions"})
         )
     except ValueError as e:
         return Response(code=400, message=str(e), data=None)
@@ -51,7 +54,7 @@ async def preview_bill(
 
 @router.post("/import", response_model=Response)
 async def import_bill(
-    file: UploadFile = File(..., description="微信账单CSV文件"),
+    file: UploadFile = File(..., description="微信账单文件（CSV/XLSX）"),
     account_id: Optional[int] = Form(None, description="导入到指定账户ID"),
     category_id: Optional[int] = Form(None, description="默认分类ID"),
     current_user: User = Depends(get_current_active_user),
@@ -60,27 +63,25 @@ async def import_bill(
     """
     导入账单（文件上传）
 
-    上传CSV文件并执行导入。支持指定账户和默认分类。
+    上传 CSV 或 XLSX 文件并执行导入。支持指定账户和默认分类。
     """
-    if not file.filename or not file.filename.lower().endswith('.csv'):
-        return Response(code=400, message="请上传CSV格式文件", data=None)
+    if not file.filename:
+        return Response(code=400, message="文件名为空", data=None)
+
+    ext = '.' + file.filename.lower().split('.')[-1]
+    if ext not in ALLOWED_EXTENSIONS:
+        return Response(code=400, message="请上传 CSV 或 XLSX 格式文件", data=None)
 
     try:
         content = await file.read()
-        encoding = bill_service._detect_encoding(content)
-        csv_content = content.decode(encoding, errors='replace')
+        preview = bill_service.parse_file(content, file.filename)
 
-        # 解析并导入
-        preview = bill_service.parse_csv_content(csv_content)
         result = bill_service.import_transactions(
-            db, current_user.id, preview.preview_data + (
-                bill_service.parse_csv_content(csv_content).preview_data
-            ),
+            db, current_user.id, preview.all_transactions,
             account_id=account_id,
             category_id=category_id,
         )
 
-        # 更新文件名
         import_log = db.query(ImportLog).filter(ImportLog.id == result["import_log_id"]).first()
         if import_log:
             import_log.file_name = file.filename
@@ -100,7 +101,7 @@ async def import_bill_base64(
     """
     导入账单（Base64编码）
 
-    请求体：{"content": "base64编码的CSV内容", "filename": "xxx.csv", "account_id": 可选}
+    请求体：{"content": "base64编码的文件内容", "filename": "xxx.csv/xlsx", "account_id": 可选}
     """
     content_b64 = data.get("content", "")
     filename = data.get("filename", "bill.csv")
@@ -112,16 +113,10 @@ async def import_bill_base64(
 
     try:
         file_bytes = base64.b64decode(content_b64)
-        encoding = bill_service._detect_encoding(file_bytes)
-        csv_content = file_bytes.decode(encoding, errors='replace')
-
-        bill_service.parse_csv_content(csv_content)
-
-        # 完整解析获取所有记录
-        full_preview = bill_service.parse_csv_content(csv_content)
+        preview = bill_service.parse_file(file_bytes, filename)
 
         result = bill_service.import_transactions(
-            db, current_user.id, full_preview.preview_data,
+            db, current_user.id, preview.all_transactions,
             account_id=account_id,
             category_id=category_id,
         )
@@ -138,17 +133,17 @@ async def import_bill_base64(
 
 @router.post("/validate", response_model=Response)
 async def validate_bill(
-    file: UploadFile = File(..., description="微信账单CSV文件"),
+    file: UploadFile = File(..., description="微信账单文件（CSV/XLSX）"),
     current_user: User = Depends(get_current_active_user),
 ):
     """
     验证文件格式
 
-    验证上传的文件是否为有效的微信账单CSV格式。
+    验证上传的文件是否为有效的微信账单格式。
     """
     try:
         content = await file.read()
-        result = bill_service.validate_csv_format(content, file.filename or "")
+        result = bill_service.validate_file_format(content, file.filename or "")
         return Response(
             code=200,
             message="success",

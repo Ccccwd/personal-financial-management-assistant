@@ -22,6 +22,7 @@ class ImportPreview(BaseModel):
     filename: str
     total_records: int
     preview_data: List[dict] = []
+    all_transactions: List[dict] = []
     detected_format: str = ""
     potential_duplicates: int = 0
     income_count: int = 0

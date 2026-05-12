@@ -405,7 +405,7 @@ class AIService:
             AIAdviceRecord.user_id == user.id,
             AIAdviceRecord.analysis_period_start >= start_date,
             AIAdviceRecord.analysis_period_end <= end_date,
-            not AIAdviceRecord.from_cache
+            ~AIAdviceRecord.from_cache
         ).order_by(AIAdviceRecord.created_at.desc()).first()
 
         if cached:
