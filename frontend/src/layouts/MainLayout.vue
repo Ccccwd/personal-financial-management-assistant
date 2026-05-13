@@ -77,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import {
@@ -102,6 +102,16 @@ const handleLogout = () => {
   userStore.logout()
   router.push('/login')
 }
+
+onMounted(async () => {
+  if (userStore.isLoggedIn && !userStore.user) {
+    try {
+      await userStore.getUserInfo()
+    } catch {
+      // token 已失效，getUserInfo 内部会执行 logout 跳转
+    }
+  }
+})
 </script>
 
 <style scoped>

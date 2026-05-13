@@ -2,7 +2,6 @@
   <div class="settings-page">
     <div class="page-header">
       <h1 class="page-title">个人设置</h1>
-      <div class="header-desc">管理您的基础账户信息及系统设定</div>
     </div>
 
     <el-row :gutter="24" justify="center">
@@ -97,12 +96,14 @@
             </el-form-item>
             
             <div class="form-actions">
-              <el-button type="warning" :loading="changingPassword" @click="handleChangePassword" class="action-btn">
+              <el-button type="primary" :loading="changingPassword" @click="handleChangePassword" class="action-btn password-btn">
                 更新账号密码
               </el-button>
             </div>
           </el-form>
         </el-card>
+
+
       </el-col>
     </el-row>
   </div>
@@ -358,13 +359,10 @@ onMounted(async () => {
   --el-button-hover-bg-color: #16A34A;
   --el-button-hover-text-color: #ffffff;
 }
-:deep(.el-button--warning) {
-  --el-button-bg-color: #f59e0b;
-  --el-button-border-color: #f59e0b;
-}
 
 :deep(.el-switch.is-checked .el-switch__core) {
   background-color: #16A34A;
   border-color: #16A34A;
 }
+
 </style>

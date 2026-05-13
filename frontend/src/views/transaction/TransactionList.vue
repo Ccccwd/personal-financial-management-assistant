@@ -1,13 +1,11 @@
-<template>
+﻿<template>
   <div class="transaction-list-page">
     <div class="page-header">
       <h1 class="page-title">交易记录</h1>
-      <el-button type="primary" @click="handleToAdd">
-        记一笔
-      </el-button>
+      <el-button type="primary" @click="handleToAdd">记一笔</el-button>
     </div>
 
-    <!-- Filtering Card -->
+    <!-- 过滤栏 -->
     <el-card class="filter-card" shadow="never">
       <el-form :inline="true" :model="form" class="filter-form">
         <el-form-item label="交易类型">
@@ -17,7 +15,7 @@
             <el-option label="转账" value="transfer" />
           </el-select>
         </el-form-item>
-        
+
         <el-form-item label="时间范围">
           <el-date-picker
             v-model="form.daterange"
@@ -30,34 +28,49 @@
             style="width: 300px"
           />
         </el-form-item>
-        
+
         <el-form-item label="关键词">
-          <el-input 
-            v-model="form.keyword" 
-            placeholder="搜索商户名或备注" 
-            clearable 
+          <el-input
+            v-model="form.keyword"
+            placeholder="搜索商户名或备注"
+            clearable
             style="width: 200px"
             @keyup.enter="handleSearch"
           >
-            <template #prefix>
-              <el-icon><Search /></el-icon>
-            </template>
+            <template #prefix><el-icon><Search /></el-icon></template>
           </el-input>
         </el-form-item>
 
         <el-form-item>
           <el-button type="primary" @click="handleSearch">查询</el-button>
           <el-button @click="resetForm">重置</el-button>
+          <!-- 未分类快速过滤 -->
+          <el-button
+            :type="onlyUncategorized ? 'warning' : ''"
+            :plain="!onlyUncategorized"
+            @click="toggleUncategorized"
+          >
+            {{ onlyUncategorized ? '✓ 仅看未分类' : '仅看未分类' }}
+          </el-button>
         </el-form-item>
       </el-form>
+
+      <!-- 未分类提示横幅 -->
+      <el-alert
+        v-if="uncategorizedCount > 0"
+        :title="`当前页有 ${uncategorizedCount} 条未分类交易，点击条目中的「待分类」可快速设置`"
+        type="warning"
+        :closable="false"
+        show-icon
+        style="margin-top: 8px"
+      />
     </el-card>
 
-    <!-- Content Area -->
+    <!-- 列表区 -->
     <el-card class="list-card" shadow="never">
       <div v-loading="loading">
-        <div v-if="groupedTransactions.length > 0">
-          <!-- Iterate over days -->
-          <div v-for="(group, index) in groupedTransactions" :key="index" class="day-group">
+        <div v-if="displayedGroups.length > 0">
+          <div v-for="(group, index) in displayedGroups" :key="index" class="day-group">
             <div class="day-header">
               <div class="day-info">
                 <span class="day-date">{{ group.date }}</span>
@@ -68,22 +81,33 @@
                 <span v-if="Number(group.expense || 0) > 0" class="exp-text">支: {{ Number(group.expense || 0).toFixed(2) }}</span>
               </div>
             </div>
-            
+
             <div class="day-list">
-              <TransactionCard 
-                v-for="item in group.items" 
-                :key="item.id" 
-                :transaction="item"
-                @click="handleToDetail(item.id)"
-              />
+              <div
+                v-for="item in group.items"
+                :key="item.id"
+                class="txn-row"
+              >
+                <!-- 可点击跳转区域 -->
+                <div class="txn-row__main" @click="handleToDetail(item.id)">
+                  <TransactionCard :transaction="item" />
+                </div>
+                <!-- 未分类快速入口（独立，不触发跳转） -->
+                <div
+                  v-if="!item.category_id && item.type !== 'transfer'"
+                  class="quick-classify-btn"
+                  @click.stop="openClassify(item)"
+                >
+                  待分类
+                </div>
+              </div>
             </div>
           </div>
         </div>
-        
-        <el-empty v-else description="暂无交易记录数据" />
+
+        <el-empty v-else :description="onlyUncategorized ? '当前页没有未分类交易 🎉' : '暂无交易记录'" />
       </div>
 
-      <!-- Pagination -->
       <div class="pagination-container" v-if="total > 0">
         <el-pagination
           v-model:current-page="page"
@@ -97,158 +121,224 @@
         />
       </div>
     </el-card>
+
+    <!-- 快速分类弹窗 -->
+    <el-dialog
+      v-model="classifyVisible"
+      title="设置分类"
+      width="420px"
+      :close-on-click-modal="true"
+      destroy-on-close
+    >
+      <div v-if="classifyTarget" class="classify-txn-info">
+        <span class="classify-txn-name">{{ classifyTarget.merchant_name || classifyTarget.category_name || '未知商户' }}</span>
+        <span class="classify-txn-amount" :class="`is-${classifyTarget.type}`">
+          {{ classifyTarget.type === 'income' ? '+' : '-' }}{{ Math.abs(classifyTarget.amount).toFixed(2) }}
+        </span>
+      </div>
+
+      <div class="category-picker" v-loading="loadingCategories">
+        <template v-if="expenseCategories.length || incomeCategories.length">
+          <!-- 支出分类 -->
+          <div v-if="expenseCategories.length" class="category-group">
+            <div class="category-group__title">支出分类</div>
+            <div class="category-grid">
+              <div
+                v-for="cat in expenseCategories"
+                :key="cat.id"
+                :class="['cat-item', { 'cat-item--active': selectedCategoryId === cat.id }]"
+                @click="selectedCategoryId = cat.id"
+              >
+                <span class="cat-item__icon" :style="cat.color ? { background: `linear-gradient(135deg,${cat.color}CC,${cat.color}88)` } : {}">
+                  {{ cat.icon || '📝' }}
+                </span>
+                <span class="cat-item__name">{{ cat.name }}</span>
+              </div>
+            </div>
+          </div>
+          <!-- 收入分类 -->
+          <div v-if="incomeCategories.length" class="category-group">
+            <div class="category-group__title">收入分类</div>
+            <div class="category-grid">
+              <div
+                v-for="cat in incomeCategories"
+                :key="cat.id"
+                :class="['cat-item', { 'cat-item--active': selectedCategoryId === cat.id }]"
+                @click="selectedCategoryId = cat.id"
+              >
+                <span class="cat-item__icon" :style="cat.color ? { background: `linear-gradient(135deg,${cat.color}CC,${cat.color}88)` } : {}">
+                  {{ cat.icon || '📝' }}
+                </span>
+                <span class="cat-item__name">{{ cat.name }}</span>
+              </div>
+            </div>
+          </div>
+        </template>
+        <el-empty v-else description="暂无分类数据" :image-size="60" />
+      </div>
+
+      <template #footer>
+        <el-button @click="classifyVisible = false">取消</el-button>
+        <el-button type="primary" :loading="classifying" :disabled="!selectedCategoryId" @click="submitClassify">
+          保存
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import TransactionCard from '@/components/business/TransactionCard.vue'
-import { getTransactions } from '@/api/transactions'
-import type { Transaction, TransactionQuery } from '@/types/transaction'
+import { getTransactions, updateTransaction } from '@/api/transactions'
+import { getCategories } from '@/api/categories'
+import type { Transaction, TransactionQuery, TransactionListPayload } from '@/types/transaction'
 
 const router = useRouter()
 
-// 状态定义
+// ── 列表状态 ────────────────────────────────────────────
 const loading = ref(false)
 const transactions = ref<Transaction[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
+const onlyUncategorized = ref(false)
 
 const form = reactive({
   type: '',
   daterange: [] as string[],
-  keyword: ''
+  keyword: '',
 })
 
-// 模拟假数据方法，因为后端没准备好
-const generateMockData = (): Transaction[] => {
-  const mock: Transaction[] = []
-  const types: ('income' | 'expense' | 'transfer')[] = ['income', 'expense', 'expense', 'expense']
-  const categories = ['餐饮美食', '交通出行', '工资收入', '日常购物']
-  const colors = ['#f59e0b', '#3b82f6', '#16a34a', '#8b5cf6']
-  
-  for(let i=0; i<15; i++) {
-    const isIncome = i % 4 === 2
-    const d = new Date()
-    d.setDate(d.getDate() - (i % 5)) // scatter across last 5 days
-    
-    mock.push({
-      id: i + 1,
-      type: types[i % 4],
-      amount: isIncome ? 5000 + i*100 : (i+1)*15.5,
-      account_id: 1,
-      account_name: '招商银行',
-      category_id: 1,
-      category_name: categories[i % 4],
-      category_color: colors[i % 4],
-      transaction_date: d.toISOString(),
-      merchant_name: isIncome ? '薪资发放' : '星巴克咖啡',
-      remark: '备注信息...',
-      source: 'manual',
-    } as any)
-  }
-  
-  // Sort by date descending
-  return mock.sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime())
-}
-
-// 分组逻辑
+// ── 分组 ────────────────────────────────────────────────
 const groupedTransactions = computed(() => {
-  const groups: Record<string, { date: string, income: number, expense: number, items: Transaction[] }> = {}
-  
+  const groups: Record<string, { date: string; income: number; expense: number; items: Transaction[] }> = {}
   transactions.value.forEach(item => {
     const dateStr = dayjs(item.transaction_date).format('YYYY年MM月DD日')
-    if (!groups[dateStr]) {
-      groups[dateStr] = { date: dateStr, income: 0, expense: 0, items: [] }
-    }
-    
-    if (item.type === 'income') groups[dateStr].income += item.amount
-    if (item.type === 'expense') groups[dateStr].expense += item.amount
-    
+    if (!groups[dateStr]) groups[dateStr] = { date: dateStr, income: 0, expense: 0, items: [] }
+    if (item.type === 'income')  groups[dateStr].income  += Number(item.amount)
+    if (item.type === 'expense') groups[dateStr].expense += Number(item.amount)
     groups[dateStr].items.push(item)
   })
-  
   return Object.values(groups)
 })
 
-// 辅助方法
-const getDayOfWeek = (dateStr: string) => {
-  const parsed = dayjs(dateStr.replace(/[年月日]/g, '-'))
-  const days = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
-  return days[parsed.day()]
+// 仅看未分类时对当前页做客户端过滤
+const displayedGroups = computed(() => {
+  if (!onlyUncategorized.value) return groupedTransactions.value
+  return groupedTransactions.value
+    .map(g => ({ ...g, items: g.items.filter(i => !i.category_id && i.type !== 'transfer') }))
+    .filter(g => g.items.length > 0)
+})
+
+const uncategorizedCount = computed(() =>
+  transactions.value.filter(t => !t.category_id && t.type !== 'transfer').length
+)
+
+const toggleUncategorized = () => {
+  onlyUncategorized.value = !onlyUncategorized.value
 }
 
-// API请求获取数据
+// ── 辅助 ────────────────────────────────────────────────
+const getDayOfWeek = (dateStr: string) => {
+  const days = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
+  return days[dayjs(dateStr.replace(/[年月日]/g, '-')).day()]
+}
+
+// ── 拉取列表 ────────────────────────────────────────────
 const fetchList = async () => {
   loading.value = true
   try {
-    const query: TransactionQuery = {
-      page: page.value,
-      page_size: pageSize.value,
-    }
-    
+    const query: TransactionQuery = { page: page.value, page_size: pageSize.value }
     if (form.type) query.type = form.type as any
     if (form.keyword) query.keyword = form.keyword
-    if (form.daterange && form.daterange.length === 2) {
+    if (form.daterange?.length === 2) {
       query.start_date = form.daterange[0]
-      query.end_date = form.daterange[1]
+      query.end_date   = form.daterange[1]
     }
-    
-    const res = await getTransactions(query)
-    // 注意: 后端API没好时退回假数据
-    if (res && res.data && res.data.transactions) {
-      transactions.value = res.data.transactions
-      total.value = res.data.total
+    const res = await getTransactions(query) as unknown as TransactionListPayload
+    if (res?.transactions) {
+      transactions.value = res.transactions
+      total.value = res.total ?? 0
     } else {
-      throw new Error('API 返回格式不匹配')
+      transactions.value = []
+      total.value = 0
     }
-  } catch (error) {
-    console.warn("API调用失败或尚未实现，展示假数据做测试")
-    transactions.value = generateMockData()
-    total.value = 15
+  } catch {
+    transactions.value = []
+    total.value = 0
   } finally {
     loading.value = false
   }
 }
 
-// 交互操作
-const handleSearch = () => {
-  page.value = 1
-  fetchList()
+const handleSearch  = () => { page.value = 1; fetchList() }
+const resetForm     = () => { form.type = ''; form.daterange = []; form.keyword = ''; onlyUncategorized.value = false; handleSearch() }
+const handleSizeChange    = (v: number) => { pageSize.value = v; fetchList() }
+const handleCurrentChange = (v: number) => { page.value = v; fetchList() }
+const handleToAdd    = () => router.push('/transactions/add')
+const handleToDetail = (id: number) => router.push(`/transactions/${id}`)
+
+// ── 快速分类 ─────────────────────────────────────────────
+const classifyVisible   = ref(false)
+const classifyTarget    = ref<Transaction | null>(null)
+const selectedCategoryId = ref<number | null>(null)
+const classifying       = ref(false)
+const loadingCategories = ref(false)
+const allCategories     = ref<any[]>([])
+
+const expenseCategories = computed(() => allCategories.value.filter(c => c.type === 'expense'))
+const incomeCategories  = computed(() => allCategories.value.filter(c => c.type === 'income'))
+
+const loadCategoriesOnce = async () => {
+  if (allCategories.value.length) return
+  loadingCategories.value = true
+  try {
+    const res = await getCategories() as any
+    allCategories.value = res?.categories ?? []
+  } finally {
+    loadingCategories.value = false
+  }
 }
 
-const resetForm = () => {
-  form.type = ''
-  form.daterange = []
-  form.keyword = ''
-  handleSearch()
+const openClassify = async (txn: Transaction) => {
+  classifyTarget.value = txn
+  selectedCategoryId.value = txn.category_id ?? null
+  classifyVisible.value = true
+  await loadCategoriesOnce()
 }
 
-const handleSizeChange = (val: number) => {
-  pageSize.value = val
-  fetchList()
+const submitClassify = async () => {
+  if (!classifyTarget.value || !selectedCategoryId.value) return
+  classifying.value = true
+  try {
+    await updateTransaction(classifyTarget.value.id, { category_id: selectedCategoryId.value })
+    // 本地更新，避免刷新整页
+    const cat = allCategories.value.find(c => c.id === selectedCategoryId.value)
+    const idx = transactions.value.findIndex(t => t.id === classifyTarget.value!.id)
+    if (idx !== -1) {
+      transactions.value[idx] = {
+        ...transactions.value[idx],
+        category_id:   selectedCategoryId.value,
+        category_name: cat?.name,
+        category_icon: cat?.icon,
+      } as Transaction
+    }
+    ElMessage.success('分类已更新')
+    classifyVisible.value = false
+  } catch {
+    // 拦截器已提示
+  } finally {
+    classifying.value = false
+  }
 }
 
-const handleCurrentChange = (val: number) => {
-  page.value = val
-  fetchList()
-}
 
-const handleToAdd = () => {
-  router.push('/transactions/add')
-}
-
-const handleToDetail = (id: number) => {
-  router.push(`/transactions/${id}`)
-}
-
-onMounted(() => {
-  fetchList()
-})
+onMounted(fetchList)
 </script>
 
 <style scoped>
@@ -268,18 +358,15 @@ onMounted(() => {
   margin: 0;
   font-size: 24px;
   font-weight: 700;
-  color: #111827; /* color-text-primary */
+  color: #111827;
 }
 
 .filter-card {
-  border-radius: 12px; /* radius matching architecture design */
+  border-radius: 12px;
   border: 1px solid #e5e7eb;
 }
 
-.filter-form {
-  display: flex;
-  flex-wrap: wrap;
-}
+.filter-form { display: flex; flex-wrap: wrap; }
 
 .list-card {
   border-radius: 12px;
@@ -287,17 +374,10 @@ onMounted(() => {
   padding: 0;
 }
 
-:deep(.list-card .el-card__body) {
-  padding: 0;
-}
+:deep(.list-card .el-card__body) { padding: 0; }
 
-.day-group {
-  border-bottom: 8px solid #f9fafb;
-}
-
-.day-group:last-child {
-  border-bottom: none;
-}
+.day-group { border-bottom: 8px solid #f9fafb; }
+.day-group:last-child { border-bottom: none; }
 
 .day-header {
   display: flex;
@@ -308,40 +388,50 @@ onMounted(() => {
   border-bottom: 1px solid #f3f4f6;
 }
 
-.day-info {
+.day-info { display: flex; align-items: center; gap: 8px; }
+.day-date { font-size: 14px; font-weight: 600; color: #4b5563; }
+.day-desc { font-size: 12px; color: #9ca3af; }
+.day-summary { font-size: 12px; display: flex; gap: 12px; }
+.inc-text { color: #16a34a; }
+.exp-text { color: #6b7280; }
+
+.day-list { display: flex; flex-direction: column; }
+
+/* 每行：卡片 + 快速分类按钮 */
+.txn-row {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
+  border-bottom: 1px solid #f3f4f6;
+}
+.txn-row:last-child { border-bottom: none; }
+
+.txn-row__main {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
 }
 
-.day-date {
-  font-size: 14px;
-  font-weight: 600;
-  color: #4b5563;
+/* 去掉 TransactionCard 自带的底边，由 txn-row 统一控制 */
+.txn-row__main :deep(.transaction-item) {
+  border-bottom: none;
 }
 
-.day-desc {
+.quick-classify-btn {
+  flex-shrink: 0;
+  margin-right: 12px;
+  padding: 3px 10px;
   font-size: 12px;
-  color: #9ca3af;
+  color: #d97706;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 20px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
 }
-
-.day-summary {
-  font-size: 12px;
-  display: flex;
-  gap: 12px;
-}
-
-.inc-text {
-  color: #16A34A; /* --color-primary green */
-}
-
-.exp-text {
-  color: #6b7280;
-}
-
-.day-list {
-  display: flex;
-  flex-direction: column;
+.quick-classify-btn:hover {
+  background: #fde68a;
 }
 
 .pagination-container {
@@ -351,15 +441,83 @@ onMounted(() => {
   border-top: 1px solid #e5e7eb;
 }
 
-/* Style overrides to match Material Design token overrides */
-:deep(.el-button--primary) {
-  --el-button-bg-color: #16A34A;
-  --el-button-border-color: #16A34A;
-  --el-button-hover-bg-color: #15803D;
-  --el-button-hover-border-color: #15803D;
+/* 快速分类弹窗 */
+.classify-txn-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0 16px;
+  border-bottom: 1px solid #f3f4f6;
+  margin-bottom: 16px;
+}
+.classify-txn-name { font-size: 15px; font-weight: 500; color: #111827; }
+.classify-txn-amount { font-size: 16px; font-weight: 600; }
+.classify-txn-amount.is-income   { color: #16a34a; }
+.classify-txn-amount.is-expense  { color: #ef4444; }
+.classify-txn-amount.is-transfer { color: #6b7280; }
+
+.category-picker { max-height: 360px; overflow-y: auto; }
+
+.category-group { margin-bottom: 12px; }
+.category-group__title {
+  font-size: 12px;
+  color: #9ca3af;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
 }
 
+.category-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 64px;
+  cursor: pointer;
+  padding: 6px 4px;
+  border-radius: 10px;
+  transition: background 0.15s;
+}
+.cat-item:hover { background: #f3f4f6; }
+.cat-item--active { background: #f0fdf4; }
+
+.cat-item__icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  background: #e5e7eb;
+}
+.cat-item--active .cat-item__icon {
+  box-shadow: 0 0 0 2px #16a34a;
+}
+
+.cat-item__name {
+  font-size: 11px;
+  color: #374151;
+  text-align: center;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:deep(.el-button--primary) {
+  --el-button-bg-color: #16a34a;
+  --el-button-border-color: #16a34a;
+  --el-button-hover-bg-color: #15803d;
+  --el-button-hover-border-color: #15803d;
+}
 :deep(.el-pagination.is-background .el-pager li.is-active) {
-  background-color: #16A34A;
+  background-color: #16a34a;
 }
 </style>

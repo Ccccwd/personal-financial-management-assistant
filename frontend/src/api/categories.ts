@@ -7,16 +7,32 @@ import {
   CategoryStat,
 } from '@/types/index'
 
+/** 按 (name, type) 去重，保留首次出现的条目（避免后端跨用户 is_system 重复返回） */
+function deduplicateCategories(categories: Category[]): Category[] {
+  const seen = new Set<string>()
+  return categories.filter(c => {
+    const key = `${c.type}:${c.name}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
 /**
  * 获取分类列表
  * @param params 查询参数
  */
-export function getCategories(params?: {
+export async function getCategories(params?: {
   type?: 'expense' | 'income'
   include_system?: boolean
   parent_id?: number
-}) {
-  return request.get<CategoryListPayload>('/categories', { params })
+}): Promise<CategoryListPayload> {
+  const res = await request.get<CategoryListPayload>('/categories', { params }) as unknown as CategoryListPayload
+  if (res?.categories) {
+    res.categories = deduplicateCategories(res.categories)
+    res.total = res.categories.length
+  }
+  return res
 }
 
 /**
