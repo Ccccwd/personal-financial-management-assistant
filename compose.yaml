@@ -1,7 +1,32 @@
-# 此文件已被 compose.yaml 替代（包含 backend + MySQL + Redis）
-# 保留此文件仅供参考，请使用 docker compose up -d 启动完整服务
+# 开发环境 Docker Compose 配置
+# 使用方法：docker compose up -d
 
 services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: finance-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=mysql+pymysql://root:finance123456@mysql:3306/finance_db
+      - REDIS_URL=redis://redis:6379/0
+      - APP_ENV=development
+      - DEBUG=true
+    volumes:
+      - ./backend:/app
+      - /app/.venv          # 匿名卷：保留容器内构建的 .venv，不被本地 Windows 的 .venv 覆盖
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - finance-network
+
   mysql:
     image: mysql:8.0
     container_name: finance-mysql
