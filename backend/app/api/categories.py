@@ -16,8 +16,29 @@ from app.models.user import User
 from app.models.category import Category
 from app.models.transaction import Transaction
 from app.core.dependencies import get_current_active_user
+from app.services.category_service import CategoryService
 
 router = APIRouter()
+category_service = CategoryService()
+
+
+@router.post("/init-system", response_model=Response)
+async def init_system_categories(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    初始化系统预设分类
+
+    为当前用户创建系统预设的分类（如果尚未创建）。
+    已存在的分类不会重复创建。
+    """
+    created = category_service.init_user_categories(db, current_user.id)
+    return Response(
+        code=200,
+        message=f"初始化完成，新建 {len(created)} 个分类",
+        data={"created_count": len(created)}
+    )
 
 
 @router.get("", response_model=Response)
