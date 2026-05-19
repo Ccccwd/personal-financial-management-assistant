@@ -3,6 +3,7 @@
     <div class="page-header">
       <h2>财务仪表盘</h2>
       <div class="actions">
+        <span class="month-tip">切换月份可查看历史数据</span>
         <el-date-picker
           v-model="currentDate"
           type="month"
@@ -25,11 +26,13 @@
               <el-icon><Wallet /></el-icon>
             </div>
             <div class="card-info">
-              <div class="label">本月收入</div>
+              <div class="label">{{ selectedMonthLabel }}收入</div>
               <div class="value">¥ {{ Number(statistics.income || 0).toFixed(2) }}</div>
-              <div class="trend positive">
-                <el-icon><CaretTop /></el-icon> 12% 较上月
+              <div v-if="statistics.income_growth !== null" class="trend" :class="(statistics.income_growth ?? 0) >= 0 ? 'positive' : 'negative'">
+                <el-icon><CaretTop v-if="(statistics.income_growth ?? 0) >= 0" /><CaretBottom v-else /></el-icon>
+                {{ Math.abs(statistics.income_growth ?? 0).toFixed(1) }}% 较上月
               </div>
+              <div v-else class="trend normal">暂无环比数据</div>
             </div>
           </div>
         </el-card>
@@ -41,11 +44,13 @@
               <el-icon><Money /></el-icon>
             </div>
             <div class="card-info">
-              <div class="label">本月支出</div>
+              <div class="label">{{ selectedMonthLabel }}支出</div>
               <div class="value">¥ {{ Number(statistics.expense || 0).toFixed(2) }}</div>
-              <div class="trend negative">
-                <el-icon><CaretBottom /></el-icon> 5% 较上月
+              <div v-if="statistics.expense_growth !== null" class="trend" :class="(statistics.expense_growth ?? 0) <= 0 ? 'positive' : 'negative'">
+                <el-icon><CaretBottom v-if="(statistics.expense_growth ?? 0) >= 0" /><CaretTop v-else /></el-icon>
+                {{ Math.abs(statistics.expense_growth ?? 0).toFixed(1) }}% 较上月
               </div>
+              <div v-else class="trend normal">暂无环比数据</div>
             </div>
           </div>
         </el-card>
@@ -57,7 +62,7 @@
               <el-icon><Histogram /></el-icon>
             </div>
             <div class="card-info">
-              <div class="label">本月结余</div>
+              <div class="label">{{ selectedMonthLabel }}结余</div>
               <div class="value" :class="{ 'negative-val': statistics.balance < 0 }">
                 ¥ {{ Number(statistics.balance || 0).toFixed(2) }}
               </div>
@@ -91,9 +96,9 @@
           <template #header>
             <div class="card-header">
               <span>近期收支趋势</span>
-              <el-radio-group v-model="trendPeriod" size="small">
-                <el-radio-button value="week">本周</el-radio-button>
-                <el-radio-button value="month">本月</el-radio-button>
+              <el-radio-group v-model="trendPeriod" size="small" @change="updateTrendChart">
+                <el-radio-button v-if="isCurrentMonth" value="week">本周</el-radio-button>
+                <el-radio-button value="month">{{ isCurrentMonth ? '本月' : selectedMonthLabel }}</el-radio-button>
               </el-radio-group>
             </div>
           </template>
@@ -289,7 +294,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, nextTick, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, nextTick, onUnmounted } from 'vue'
 import {
   Wallet, Money, Histogram, House, CaretTop, CaretBottom,
   Edit, DataLine, Upload, Plus, ArrowRight
@@ -299,91 +304,155 @@ import * as echarts from 'echarts'
 import dayjs from 'dayjs'
 import { getBudgets, createBudget } from '@/api/budgets'
 import { getCategories } from '@/api/categories'
+import { getStatisticsOverview } from '@/api/statistics'
 import type { BudgetWithProgress, BudgetPeriodType } from '@/types/budget'
 import type { Category } from '@/types/category'
+import type { StatisticsOverview } from '@/types/statistics'
 
 // ─── 月份选择 ────────────────────────────────────────────────────────────────
+const trendPeriod = ref('week')   // 提前声明，handleMonthChange 需引用
 const currentDate = ref(dayjs().format('YYYY-MM'))
+const selectedMonthLabel = computed(() => dayjs(currentDate.value).format('M月'))
+/** 判断当前选择的月份是否为系统本月 */
+const isCurrentMonth = computed(() => currentDate.value === dayjs().format('YYYY-MM'))
 
 const handleMonthChange = () => {
+  // 切换到历史月份时不存在"本周"概念，强制切为本月模式
+  if (!isCurrentMonth.value && trendPeriod.value === 'week') {
+    trendPeriod.value = 'month'
+  }
   loadBudgets()
+  loadStatistics()
 }
 
-// ─── 概览数据（暂用固定值，待后端接口就绪后替换） ─────────────────────────────
+// ─── 概览数据 ─────────────────────────────────────────────────────────────────
+const statisticsLoading = ref(false)
 const statistics = reactive({
-  income: 8500.00,
-  expense: 3240.50,
-  balance: 5259.50,
-  totalAssets: 156000.00,
+  income: 0,
+  expense: 0,
+  balance: 0,
+  totalAssets: 0,
+  income_growth: null as number | null,
+  expense_growth: null as number | null,
 })
+const overviewTrendData = ref<StatisticsOverview['trend_data']>([])
+const overviewDistribution = ref<StatisticsOverview['category_distribution']>([])
+
+const loadStatistics = async () => {
+  statisticsLoading.value = true
+  try {
+    const [year, month] = currentDate.value.split('-').map(Number)
+    const res = await getStatisticsOverview({ current_year: year, current_month: month }) as unknown as StatisticsOverview
+    if (res?.monthly_summary) {
+      statistics.income = res.monthly_summary.income
+      statistics.expense = res.monthly_summary.expense
+      statistics.balance = res.monthly_summary.balance
+      statistics.totalAssets = res.total_balance ?? 0
+      statistics.income_growth = res.monthly_summary.income_growth ?? null
+      statistics.expense_growth = res.monthly_summary.expense_growth ?? null
+      overviewTrendData.value = res.trend_data ?? []
+      overviewDistribution.value = res.category_distribution ?? []
+    }
+  } catch {
+    // 请求拦截器已提示错误
+  } finally {
+    statisticsLoading.value = false
+    nextTick(() => {
+      updateTrendChart()
+      updatePieChart()
+    })
+  }
+}
 
 // ─── 图表 ────────────────────────────────────────────────────────────────────
-const trendPeriod = ref('week')
 const trendChartRef = ref<HTMLElement | null>(null)
 const pieChartRef = ref<HTMLElement | null>(null)
 let trendChart: echarts.ECharts | null = null
 let pieChart: echarts.ECharts | null = null
 
 const initCharts = () => {
-  if (trendChartRef.value) {
+  if (trendChartRef.value && !trendChart) {
     trendChart = echarts.init(trendChartRef.value)
-    trendChart.setOption({
-      tooltip: { trigger: 'axis' },
-      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-      xAxis: {
-        type: 'category',
-        boundaryGap: false,
-        data: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
-      },
-      yAxis: { type: 'value' },
-      series: [
-        {
-          name: '支出',
-          type: 'line',
-          smooth: true,
-          areaStyle: { opacity: 0.1 },
-          data: [120, 132, 101, 134, 90, 230, 210],
-          itemStyle: { color: '#f56c6c' },
-        },
-        {
-          name: '收入',
-          type: 'line',
-          smooth: true,
-          areaStyle: { opacity: 0.1 },
-          data: [220, 182, 191, 234, 290, 330, 310],
-          itemStyle: { color: '#16A34A' },
-        },
-      ],
-    })
   }
-
-  if (pieChartRef.value) {
+  if (pieChartRef.value && !pieChart) {
     pieChart = echarts.init(pieChartRef.value)
-    pieChart.setOption({
-      tooltip: { trigger: 'item' },
-      legend: { bottom: '0%', left: 'center' },
-      series: [
-        {
-          name: '支出分类',
-          type: 'pie',
-          radius: ['40%', '70%'],
-          avoidLabelOverlap: false,
-          itemStyle: { borderRadius: 10, borderColor: '#fff', borderWidth: 2 },
-          label: { show: false, position: 'center' },
-          emphasis: { label: { show: true, fontSize: 16, fontWeight: 'bold' } },
-          labelLine: { show: false },
-          data: [
-            { value: 1048, name: '餐饮' },
-            { value: 735, name: '购物' },
-            { value: 580, name: '交通' },
-            { value: 484, name: '娱乐' },
-            { value: 300, name: '其他' },
-          ],
-        },
-      ],
-    })
   }
 }
+
+const updateTrendChart = () => {
+  if (!trendChartRef.value) return
+  if (!trendChart) trendChart = echarts.init(trendChartRef.value)
+
+  const allData = overviewTrendData.value
+  const slice = (() => {
+    if (trendPeriod.value !== 'week') return allData
+    // 计算本周一到本周日（ISO 周，周一为第一天）
+    const today = dayjs()
+    const dow = today.day() // 0=周日, 1=周一, ...
+    const weekStart = today.subtract(dow === 0 ? 6 : dow - 1, 'day').startOf('day')
+    const weekEnd = weekStart.add(6, 'day').endOf('day')
+    return allData.filter(d => {
+      const date = dayjs(d.date)
+      return !date.isBefore(weekStart) && !date.isAfter(weekEnd)
+    })
+  })()
+  const xData = slice.map(d => dayjs(d.date).format('MM-DD'))
+
+  trendChart.setOption({
+    tooltip: { trigger: 'axis' },
+    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+    legend: { data: ['支出', '收入'], top: 0 },
+    xAxis: { type: 'category', boundaryGap: false, data: xData },
+    yAxis: { type: 'value' },
+    series: [
+      {
+        name: '支出',
+        type: 'line',
+        smooth: true,
+        areaStyle: { opacity: 0.1 },
+        data: slice.map(d => d.expense ?? 0),
+        itemStyle: { color: '#f56c6c' },
+      },
+      {
+        name: '收入',
+        type: 'line',
+        smooth: true,
+        areaStyle: { opacity: 0.1 },
+        data: slice.map(d => d.income ?? 0),
+        itemStyle: { color: '#16A34A' },
+      },
+    ],
+  })
+}
+
+const updatePieChart = () => {
+  if (!pieChartRef.value) return
+  if (!pieChart) pieChart = echarts.init(pieChartRef.value)
+  const fallback = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6']
+  pieChart.setOption({
+    tooltip: { trigger: 'item', formatter: '{b}: ¥{c} ({d}%)' },
+    legend: { bottom: '0%', left: 'center' },
+    series: [
+      {
+        name: '支出分类',
+        type: 'pie',
+        radius: ['40%', '70%'],
+        avoidLabelOverlap: false,
+        itemStyle: { borderRadius: 10, borderColor: '#fff', borderWidth: 2 },
+        label: { show: false, position: 'center' },
+        emphasis: { label: { show: true, fontSize: 16, fontWeight: 'bold' } },
+        labelLine: { show: false },
+        data: overviewDistribution.value.map((d, i) => ({
+          value: d.amount,
+          name: d.name,
+          itemStyle: { color: d.color || fallback[i % fallback.length] },
+        })),
+      },
+    ],
+  })
+}
+
+watch(trendPeriod, () => updateTrendChart())
 
 const handleResize = () => {
   trendChart?.resize()
@@ -407,7 +476,7 @@ const loadBudgets = async () => {
   try {
     const [year, month] = currentDate.value.split('-').map(Number)
     const res = await getBudgets({ year, month, period_type: 'monthly' })
-    allBudgets.value = res?.data?.budgets ?? []
+    allBudgets.value = res?.budgets ?? []
   } catch {
     allBudgets.value = []
   } finally {
@@ -471,7 +540,7 @@ const loadExpenseCategories = async () => {
   if (expenseCategories.value.length > 0) return
   try {
     const res = await getCategories({ type: 'expense' })
-    expenseCategories.value = res?.data?.categories ?? []
+    expenseCategories.value = res?.categories ?? []
   } catch {
     // 分类加载失败不影响主体流程
   }
@@ -495,9 +564,8 @@ const handleBudgetSubmit = async () => {
     ElMessage.success('预算创建成功')
     budgetDialogVisible.value = false
     loadBudgets()
-  } catch (err: unknown) {
-    const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-    ElMessage.error(msg || '创建失败，请稍后重试')
+  } catch {
+    // 错误已由请求拦截器统一提示
   } finally {
     budgetSubmitting.value = false
   }
@@ -510,6 +578,7 @@ onMounted(() => {
     window.addEventListener('resize', handleResize)
   })
   loadBudgets()
+  loadStatistics()
 })
 
 onUnmounted(() => {
@@ -538,6 +607,17 @@ onUnmounted(() => {
   font-size: 24px;
   font-weight: 700;
   color: #111827;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.month-tip {
+  font-size: 12px;
+  color: #9ca3af;
 }
 
 /* 概览卡片 */

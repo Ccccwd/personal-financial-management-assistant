@@ -239,49 +239,21 @@ const getAccountTypeColor = (type: string) => {
   return map[type] || '#6B7280'
 }
 
-// 获取列表数据 & Mock 测试数据
+// 获取列表数据
 const fetchData = async () => {
   loadingList.value = true
   loadingSummary.value = true
   try {
-    const listRes = await getAccounts()
-    // 修正：request.ts 拦截器已经直接返回了 res.data，所以这里使用 listRes.accounts
-    const listData = listRes as any
-    if (listData?.accounts) {
-      accounts.value = listData.accounts
+    const listRes = await getAccounts() as any
+    if (listRes?.accounts) {
+      accounts.value = listRes.accounts
     }
-    
-    const sumRes = await getAccountSummary()
+    const sumRes = await getAccountSummary() as any
     if (sumRes) {
-      summary.value = sumRes as any
+      summary.value = sumRes
     }
-  } catch (error) {
-    console.warn("API调用失败或未找到后端，加载测试 Mock 数据")
-    // Mock accounts
-    accounts.value = [
-      { id: 1, name: '招商银行信用卡', type: 'bank', balance: -2000.5, initial_balance: 0, is_default: false, is_enabled: true },
-      { id: 2, name: '微信零钱', type: 'wechat', balance: 5400.0, initial_balance: 0, is_default: true, is_enabled: true },
-      { id: 3, name: '支付宝余额宝', type: 'alipay', balance: 13500.5, initial_balance: 0, is_default: false, is_enabled: true },
-      { id: 4, name: '饭卡', type: 'meal_card', balance: 156.0, initial_balance: 0, is_default: false, is_enabled: true }
-    ] as Account[]
-    // Mock summary
-    let sum = 0
-    const distribution: any[] = []
-    accounts.value.forEach(a => {
-      sum += a.balance
-      const existing = distribution.find(d => d.type === a.type)
-      if(existing) {
-        existing.balance += a.balance
-        existing.count += 1
-      } else {
-        distribution.push({ type: a.type, balance: a.balance, count: 1 })
-      }
-    })
-    summary.value = {
-      total_balance: sum,
-      total_accounts: accounts.value.length,
-      account_distribution: distribution.filter(d => d.balance > 0)
-    }
+  } catch {
+    // 错误已由请求拦截器统一提示
   } finally {
     loadingList.value = false
     loadingSummary.value = false

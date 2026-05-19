@@ -28,10 +28,22 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: '新增交易' }
       },
       {
+        path: 'transactions/:id',
+        name: 'TransactionDetail',
+        component: () => import('@/views/transaction/TransactionDetail.vue'),
+        meta: { title: '交易详情' }
+      },
+      {
         path: 'accounts',
         name: 'Accounts',
         component: () => import('@/views/account/AccountList.vue'),
         meta: { title: '账户管理' }
+      },
+      {
+        path: 'accounts/:id',
+        name: 'AccountDetail',
+        component: () => import('@/views/account/AccountDetail.vue'),
+        meta: { title: '账户详情' }
       },
       {
         path: 'budgets',
@@ -56,6 +68,12 @@ const routes: Array<RouteRecordRaw> = [
         name: 'Settings',
         component: () => import('@/views/settings/ProfileView.vue'),
         meta: { title: '个人设置' }
+      },
+      {
+        path: 'settings/categories',
+        name: 'CategoryManage',
+        component: () => import('@/views/settings/CategoryManage.vue'),
+        meta: { title: '分类管理' }
       }
     ]
   },

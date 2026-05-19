@@ -11,8 +11,8 @@ import {
  * 获取预算列表
  * @param params 查询参数
  */
-export function getBudgets(params: BudgetQuery) {
-  return request.get<BudgetListPayload>('/budgets', { params })
+export function getBudgets(params: BudgetQuery): Promise<BudgetListPayload> {
+  return request.get<BudgetListPayload>('/budgets', { params }) as Promise<BudgetListPayload>
 }
 
 /**

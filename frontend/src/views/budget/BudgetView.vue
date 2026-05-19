@@ -26,7 +26,7 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="月份">
+        <el-form-item v-if="queryForm.period_type !== 'yearly'" label="月份">
           <el-select
             v-model="queryForm.month"
             placeholder="全年"
@@ -43,7 +43,7 @@
             placeholder="全部"
             clearable
             style="width: 130px"
-            @change="fetchData"
+            @change="handleQueryPeriodChange"
           >
             <el-option label="月度预算" value="monthly" />
             <el-option label="年度预算" value="yearly" />
@@ -430,16 +430,23 @@ const statusTag = (status: string) => {
 }
 
 // ─── 数据加载 ────────────────────────────────────────────────────────────────
+const handleQueryPeriodChange = () => {
+  if (queryForm.period_type === 'yearly') {
+    queryForm.month = undefined
+  }
+  fetchData()
+}
+
 const fetchData = async () => {
   loading.value = true
   try {
     const params = {
       year: queryForm.year,
-      month: queryForm.month || undefined,
+      month: queryForm.period_type === 'yearly' ? undefined : (queryForm.month || undefined),
       period_type: queryForm.period_type || undefined,
     }
     const res = await getBudgets(params as any)
-    budgets.value = res?.data?.budgets ?? []
+    budgets.value = res?.budgets ?? []
   } catch {
     ElMessage.warning('加载预算数据失败，请检查网络或稍后重试')
     budgets.value = []
@@ -452,7 +459,7 @@ const fetchCategories = async () => {
   categoryLoading.value = true
   try {
     const res = await getCategories({ type: 'expense' })
-    expenseCategories.value = res?.data?.categories ?? []
+    expenseCategories.value = res?.categories ?? []
   } catch {
     // 分类加载失败不影响主体功能
   } finally {
@@ -462,10 +469,11 @@ const fetchCategories = async () => {
 
 // ─── 对话框操作 ─────────────────────────────────────────────────────────────
 const openAddDialog = () => {
+  const initPeriod = (queryForm.period_type ?? 'monthly') as BudgetPeriodType
   dialogForm.id = 0
-  dialogForm.period_type = 'monthly'
+  dialogForm.period_type = initPeriod
   dialogForm.year = currentYear
-  dialogForm.month = currentMonth
+  dialogForm.month = initPeriod === 'yearly' ? undefined : currentMonth
   dialogForm.category_id = null
   dialogForm.amount = 1000
   dialogForm.alert_threshold = 80
@@ -517,9 +525,8 @@ const handleSubmit = async () => {
 
     dialogVisible.value = false
     fetchData()
-  } catch (err: unknown) {
-    const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-    ElMessage.error(msg || '操作失败，请稍后重试')
+  } catch {
+    // 错误已由请求拦截器统一提示
   } finally {
     submitting.value = false
   }

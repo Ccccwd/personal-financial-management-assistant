@@ -10,6 +10,7 @@ const baseTransaction = {
   id: 1,
   type: 'expense' as const,
   amount: 100.5,
+  account_id: 1,
   category_name: '餐饮',
   category_color: '#FF6B6B',
   account_name: '微信',

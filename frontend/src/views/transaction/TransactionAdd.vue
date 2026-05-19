@@ -30,21 +30,23 @@
 
       <!-- 金额输入区 -->
       <div class="amount-section">
-        <div class="amount-label">金额</div>
-        <div class="amount-input-row">
-          <span class="currency-sign">¥</span>
-          <input
-            ref="amountInputRef"
-            v-model="amountDisplay"
-            class="amount-input"
-            type="text"
-            inputmode="decimal"
-            placeholder="0.00"
-            @input="handleAmountInput"
-            @focus="handleAmountFocus"
-          />
+        <div class="amount-content">
+          <div class="amount-input-row">
+            <span class="amount-label">金额：</span>
+            <span class="currency-sign">¥</span>
+            <input
+              ref="amountInputRef"
+              v-model="amountDisplay"
+              class="amount-input"
+              type="text"
+              inputmode="decimal"
+              placeholder="0.00"
+              @input="handleAmountInput"
+              @focus="handleAmountFocus"
+            />
+          </div>
+          <div v-if="amountError" class="amount-error">{{ amountError }}</div>
         </div>
-        <div v-if="amountError" class="amount-error">{{ amountError }}</div>
       </div>
 
       <!-- 分类选择（非转账时显示） -->
@@ -58,11 +60,26 @@
             v-for="cat in filteredCategories"
             :key="cat.id"
             :class="['category-item', { 'category-item--active': formData.category_id === cat.id }]"
-            :style="formData.category_id === cat.id && cat.color ? { borderColor: cat.color, backgroundColor: cat.color + '1A' } : {}"
             @click="formData.category_id = cat.id"
           >
-            <span class="category-item__icon">{{ cat.icon || '📝' }}</span>
-            <span class="category-item__name">{{ cat.name }}</span>
+            <div
+              class="category-item__icon-wrap"
+              :style="{
+                background: cat.color
+                  ? `linear-gradient(135deg, ${cat.color}CC, ${cat.color}88)`
+                  : 'linear-gradient(135deg, #a3a3a3CC, #a3a3a388)',
+                boxShadow: formData.category_id === cat.id && cat.color
+                  ? `0 4px 14px ${cat.color}55`
+                  : 'none'
+              }"
+            >
+              <span class="category-item__icon">{{ cat.icon || '📝' }}</span>
+              <span v-if="formData.category_id === cat.id" class="category-item__check">✓</span>
+            </div>
+            <span
+              class="category-item__name"
+              :style="formData.category_id === cat.id && cat.color ? { color: cat.color } : {}"
+            >{{ cat.name }}</span>
           </div>
         </div>
         <div v-else class="category-empty">
@@ -133,6 +150,10 @@
           value-format="YYYY-MM-DD HH:mm:ss"
           style="width: 100%"
           size="large"
+          :disabled-date="disabledFutureDate"
+          :disabled-hours="disabledFutureHours"
+          :disabled-minutes="disabledFutureMinutes"
+          :disabled-seconds="disabledFutureSeconds"
         />
       </div>
 
@@ -175,8 +196,8 @@ import dayjs from 'dayjs'
 import { getCategories } from '@/api/categories'
 import { getAccounts, transfer as transferApi } from '@/api/accounts'
 import { createTransaction } from '@/api/transactions'
-import type { Category } from '@/types/category'
-import type { Account } from '@/types/account'
+import type { Category, CategoryListPayload } from '@/types/category'
+import type { Account, AccountListPayload } from '@/types/account'
 import type { TransactionType } from '@/types/transaction'
 
 const router = useRouter()
@@ -353,24 +374,21 @@ const handleSubmit = async () => {
 
     ElMessage.success('记账成功！')
     router.push('/transactions')
-  } catch (err: unknown) {
-    const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-    ElMessage.error(msg || '记账失败，请稍后重试')
+  } catch {
+    // 错误已由请求拦截器统一提示
   } finally {
     submitting.value = false
   }
 }
 
-// 加载分类列表
+// 加载分类列表：优先使用后端数据，后端无数据时回落到本地预设分类
 const loadCategories = async () => {
   categoryLoading.value = true
   try {
-    const res = await getCategories()
-    if (res?.data?.categories) {
-      categories.value = res.data.categories
-    }
+    const res = await getCategories() as unknown as CategoryListPayload
+    categories.value = res?.categories ?? []
   } catch {
-    ElMessage.warning('分类加载失败，请刷新重试')
+    categories.value = []
   } finally {
     categoryLoading.value = false
   }
@@ -380,9 +398,9 @@ const loadCategories = async () => {
 const loadAccounts = async () => {
   accountLoading.value = true
   try {
-    const res = await getAccounts({ is_enabled: true })
-    if (res?.data?.accounts) {
-      accounts.value = res.data.accounts
+    const res = await getAccounts({ is_enabled: true }) as unknown as AccountListPayload
+    if (res?.accounts) {
+      accounts.value = res.accounts
       const defaultAcc = accounts.value.find(a => a.is_default) ?? accounts.value[0]
       if (defaultAcc) {
         formData.account_id = defaultAcc.id
@@ -393,6 +411,33 @@ const loadAccounts = async () => {
   } finally {
     accountLoading.value = false
   }
+}
+
+// 禁止选择未来时间
+const disabledFutureDate = (date: Date) => date > new Date()
+
+const disabledFutureHours = () => {
+  const now = dayjs()
+  if (!formData.transaction_date) return []
+  const selected = dayjs(formData.transaction_date)
+  if (!selected.isSame(now, 'day')) return []
+  return Array.from({ length: 24 }, (_, h) => h).filter(h => h > now.hour())
+}
+
+const disabledFutureMinutes = (hour: number) => {
+  const now = dayjs()
+  if (!formData.transaction_date) return []
+  const selected = dayjs(formData.transaction_date)
+  if (!selected.isSame(now, 'day') || hour !== now.hour()) return []
+  return Array.from({ length: 60 }, (_, m) => m).filter(m => m > now.minute())
+}
+
+const disabledFutureSeconds = (hour: number, minute: number) => {
+  const now = dayjs()
+  if (!formData.transaction_date) return []
+  const selected = dayjs(formData.transaction_date)
+  if (!selected.isSame(now, 'day') || hour !== now.hour() || minute !== now.minute()) return []
+  return Array.from({ length: 60 }, (_, s) => s).filter(s => s > now.second())
 }
 
 onMounted(() => {
@@ -493,39 +538,45 @@ onMounted(() => {
   border-radius: 12px;
   padding: 24px 20px 20px;
   border: 1px solid #e5e7eb;
-  text-align: center;
+  display: flex;
+  justify-content: center;
+}
+
+.amount-content {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .amount-label {
-  font-size: 12px;
-  color: #9ca3af;
-  margin-bottom: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-size: 32px;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1;
+  font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 
 .amount-input-row {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 4px;
 }
 
 .currency-sign {
-  font-size: 32px;
+  font-size: 24px;
   font-weight: 700;
   color: #111827;
   line-height: 1;
 }
 
 .amount-input {
-  font-size: 48px;
+  font-size: 36px;
   font-weight: 700;
   color: #111827;
   border: none;
   outline: none;
   background: transparent;
-  width: 220px;
+  width: 180px;
   text-align: left;
   caret-color: #16a34a;
   font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
@@ -562,74 +613,94 @@ onMounted(() => {
 }
 
 .category-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 10px;
-}
-
-@media (max-width: 480px) {
-  .category-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-@media (min-width: 900px) {
-  .category-grid {
-    grid-template-columns: repeat(6, 1fr);
-  }
+  display: flex;
+  flex-wrap: wrap;
+  row-gap: 14px;
+  justify-content: center;
 }
 
 .category-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 12px 6px;
-  border: 2px solid #e5e7eb;
-  border-radius: 10px;
+  gap: 8px;
   cursor: pointer;
-  transition: all 0.2s;
-  background-color: #f9fafb;
-  min-height: 76px;
+  transition: transform 0.18s ease;
+  flex: 0 0 20%;
   box-sizing: border-box;
+  padding: 4px 2px;
 }
 
 .category-item:hover {
-  border-color: #16a34a;
-  background-color: #f0fdf4;
-  transform: translateY(-1px);
+  transform: translateY(-3px);
 }
 
 .category-item--active {
-  border-color: #16a34a;
-  background-color: #f0fdf4;
+  transform: translateY(-3px);
+}
+
+.category-item__icon-wrap {
+  position: relative;
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.category-item:hover .category-item__icon-wrap {
+  transform: scale(1.06);
+}
+
+.category-item--active .category-item__icon-wrap {
+  transform: scale(1.1);
 }
 
 .category-item__icon {
   font-size: 26px;
   line-height: 1;
-  margin-bottom: 5px;
+}
+
+.category-item__check {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 18px;
+  height: 18px;
+  background: #16a34a;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  font-size: 10px;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .category-item__name {
   font-size: 12px;
-  color: #4b5563;
+  font-weight: 500;
+  color: #6b7280;
   text-align: center;
   word-break: keep-all;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+  transition: color 0.18s ease, font-weight 0.18s ease;
 }
 
 .category-item--active .category-item__name {
-  color: #16a34a;
   font-weight: 600;
 }
 
 .category-empty {
   text-align: center;
-  padding: 20px 0;
+  padding: 24px 0;
   font-size: 14px;
   color: #9ca3af;
 }
