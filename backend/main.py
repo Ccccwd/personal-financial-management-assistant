@@ -1,7 +1,11 @@
 """
 智能个人财务记账系统 - FastAPI 应用入口
 """
+import logging
 from contextlib import asynccontextmanager
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response as StarletteResponse
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -9,28 +13,46 @@ from app.config.settings import settings
 from app.config.database import engine, Base
 from app.api import api_router
 from app.core.exceptions import setup_exception_handlers
+from app.core.rate_limiter import RateLimitMiddleware
+
+logger = logging.getLogger(__name__)
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """安全响应头中间件"""
+
+    async def dispatch(self, request: Request, call_next):
+        response: StarletteResponse = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data:; "
+            "connect-src 'self'"
+        )
+        return response
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
-    # 启动时：创建数据库表（如果不存在）
-    print("[*] 正在启动应用...")
-    print(f"[*] 环境: {settings.app_env}")
-    print(f"[*] 调试模式: {settings.debug}")
+    logger.info("正在启动应用...")
+    logger.info("环境: %s", settings.app_env)
 
     # 尝试创建所有表
     try:
         Base.metadata.create_all(bind=engine)
-        print("[+] 数据库表初始化完成")
+        logger.info("数据库表初始化完成")
     except Exception as e:
-        print(f"[!] 数据库连接失败，请检查配置: {e}")
-        print("[!] 应用将在无数据库模式下启动（仅用于测试）")
+        logger.warning("数据库连接失败，请检查配置: %s", e)
 
     yield
 
-    # 关闭时
-    print("[*] 正在关闭应用...")
+    logger.info("正在关闭应用...")
 
 
 # 创建 FastAPI 应用
@@ -42,6 +64,12 @@ app = FastAPI(
     redoc_url="/redoc",
     lifespan=lifespan
 )
+
+# 安全响应头中间件
+app.add_middleware(SecurityHeadersMiddleware)
+
+# 速率限制中间件
+app.add_middleware(RateLimitMiddleware)
 
 # 设置 CORS 中间件
 app.add_middleware(

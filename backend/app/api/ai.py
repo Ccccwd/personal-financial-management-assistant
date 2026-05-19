@@ -10,8 +10,7 @@ from sqlalchemy.orm import Session
 from app.config.database import get_db
 from app.schemas.common import Response
 from app.schemas.ai import (
-    ClassifyRequest, ClassifyResponse, ClassifyResultItem,
-    AdviceResponse, AIUsageResponse
+    ClassifyRequest
 )
 from app.models.user import User
 from app.models.transaction import Transaction
@@ -52,7 +51,7 @@ async def classify_transactions(
                 "rule_matched_count": result["rule_matched_count"]
             }
         )
-    except Exception as e:
+    except Exception:
         return Response(
             code=500,
             message="AI服务暂时不可用",
@@ -98,7 +97,7 @@ async def reclassify_transaction(
             message="success",
             data=result
         )
-    except Exception as e:
+    except Exception:
         return Response(
             code=500,
             message="AI服务暂时不可用",
@@ -142,7 +141,7 @@ async def get_financial_advice(
                 "advice": result["advice"]
             }
         )
-    except Exception as e:
+    except Exception:
         return Response(
             code=500,
             message="AI服务暂时不可用",
@@ -263,7 +262,7 @@ async def get_usage_stats(
             message="success",
             data=stats
         )
-    except Exception as e:
+    except Exception:
         return Response(
             code=500,
             message="获取用量统计失败",

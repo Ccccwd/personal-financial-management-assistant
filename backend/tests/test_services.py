@@ -2,10 +2,9 @@
 业务逻辑单元测试
 使用 Mock 隔离数据库和外部 API
 """
-import pytest
 import json
 from unittest.mock import patch, MagicMock
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from app.services.ai_service import AIService
 from app.core.security import (

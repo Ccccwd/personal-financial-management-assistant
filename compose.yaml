@@ -1,0 +1,80 @@
+# 开发环境 Docker Compose 配置
+# 使用方法：docker compose up -d
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: finance-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=mysql+pymysql://root:finance123456@mysql:3306/finance_db
+      - REDIS_URL=redis://redis:6379/0
+      - APP_ENV=development
+      - DEBUG=true
+    volumes:
+      - ./backend:/app
+      - /app/.venv          # 匿名卷：保留容器内构建的 .venv，不被本地 Windows 的 .venv 覆盖
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - finance-network
+
+  mysql:
+    image: mysql:8.0
+    container_name: finance-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-finance123456}
+      MYSQL_DATABASE: finance_db
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - finance-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: finance-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - finance-network
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  finance-network:
+    driver: bridge

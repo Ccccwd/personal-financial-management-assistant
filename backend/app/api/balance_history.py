@@ -3,15 +3,12 @@
 """
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
 from typing import Optional
-from datetime import datetime
 
 from app.config.database import get_db
 from app.schemas.common import Response
 from app.models.user import User
 from app.models.transaction import Transaction
-from app.models.account import Account
 from app.core.dependencies import get_current_active_user
 
 router = APIRouter()

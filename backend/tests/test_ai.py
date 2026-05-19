@@ -1,7 +1,6 @@
 """
 余额历史 API 接口测试
 """
-import pytest
 
 
 class TestBalanceHistory:

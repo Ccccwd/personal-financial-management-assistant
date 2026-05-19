@@ -2,13 +2,16 @@
 测试配置文件
 包含测试所需的 fixtures 和工具函数
 """
+import os
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+# 测试环境标识（跳过速率限制）
+os.environ["APP_ENV"] = "testing"
+
 from app.config.database import Base, get_db
-from app.models.user import User
 from main import app
 
 

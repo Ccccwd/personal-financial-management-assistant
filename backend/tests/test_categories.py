@@ -1,21 +1,19 @@
 """
 分类管理接口测试
 """
-import pytest
 
 
 class TestCategoriesEmpty:
     """分类空列表测试"""
 
     def test_get_categories_empty(self, client, auth_headers):
-        """未创建分类时返回空列表"""
+        """注册后应返回系统预设分类"""
         response = client.get("/api/categories", headers=auth_headers)
         assert response.status_code == 200
 
         data = response.json()
         assert data["code"] == 200
         assert data["message"] == "success"
-        # 只返回系统分类，自定义分类为空
         assert "data" in data
         assert "categories" in data["data"]
 
@@ -26,7 +24,7 @@ class TestCreateCategory:
     def test_create_expense_category(self, client, auth_headers):
         """创建支出分类"""
         response = client.post("/api/categories", headers=auth_headers, json={
-            "name": "餐饮",
+            "name": "自定义支出",
             "type": "expense",
             "icon": "food",
             "color": "#FF6B6B"
@@ -36,14 +34,14 @@ class TestCreateCategory:
         data = response.json()
         assert data["code"] == 200
         assert data["message"] == "创建成功"
-        assert data["data"]["name"] == "餐饮"
+        assert data["data"]["name"] == "自定义支出"
         assert data["data"]["type"] == "expense"
         assert data["data"]["is_system"] is False
 
     def test_create_income_category(self, client, auth_headers):
         """创建收入分类"""
         response = client.post("/api/categories", headers=auth_headers, json={
-            "name": "工资",
+            "name": "自定义收入",
             "type": "income",
             "icon": "wallet",
             "color": "#4ECDC4"
@@ -52,20 +50,20 @@ class TestCreateCategory:
 
         data = response.json()
         assert data["code"] == 200
-        assert data["data"]["name"] == "工资"
+        assert data["data"]["name"] == "自定义收入"
         assert data["data"]["type"] == "income"
 
     def test_create_category_duplicate(self, client, auth_headers):
         """重复名称返回400"""
         # 创建第一个分类
         client.post("/api/categories", headers=auth_headers, json={
-            "name": "餐饮",
+            "name": "重复测试分类",
             "type": "expense"
         })
 
         # 尝试创建同名分类
         response = client.post("/api/categories", headers=auth_headers, json={
-            "name": "餐饮",
+            "name": "重复测试分类",
             "type": "expense"
         })
         assert response.status_code == 200
@@ -78,14 +76,14 @@ class TestCreateCategory:
         """创建带父分类的子分类"""
         # 先创建父分类
         parent_response = client.post("/api/categories", headers=auth_headers, json={
-            "name": "餐饮",
+            "name": "父级测试分类",
             "type": "expense"
         })
         parent_id = parent_response.json()["data"]["id"]
 
         # 创建子分类
         response = client.post("/api/categories", headers=auth_headers, json={
-            "name": "早餐",
+            "name": "子级测试分类",
             "type": "expense",
             "parent_id": parent_id
         })
@@ -154,14 +152,14 @@ class TestCategoryTree:
         """获取分类树结构"""
         # 创建父分类
         parent_response = client.post("/api/categories", headers=auth_headers, json={
-            "name": "餐饮",
+            "name": "树形父分类",
             "type": "expense"
         })
         parent_id = parent_response.json()["data"]["id"]
 
         # 创建子分类
         client.post("/api/categories", headers=auth_headers, json={
-            "name": "早餐",
+            "name": "树形子分类",
             "type": "expense",
             "parent_id": parent_id
         })
@@ -211,14 +209,14 @@ class TestUpdateCategory:
         category_id = test_category["id"]
 
         response = client.put(f"/api/categories/{category_id}", headers=auth_headers, json={
-            "name": "餐饮（更新）",
+            "name": "分类（更新）",
             "color": "#00FF00"
         })
         assert response.status_code == 200
 
         data = response.json()
         assert data["code"] == 200
-        assert data["data"]["name"] == "餐饮（更新）"
+        assert data["data"]["name"] == "分类（更新）"
         assert data["data"]["color"] == "#00FF00"
 
     def test_update_category_not_found(self, client, auth_headers):
@@ -250,14 +248,14 @@ class TestDeleteCategory:
         """有子分类时不可删除"""
         # 创建父分类
         parent_response = client.post("/api/categories", headers=auth_headers, json={
-            "name": "餐饮",
+            "name": "待删父分类",
             "type": "expense"
         })
         parent_id = parent_response.json()["data"]["id"]
 
         # 创建子分类
         client.post("/api/categories", headers=auth_headers, json={
-            "name": "早餐",
+            "name": "待删子分类",
             "type": "expense",
             "parent_id": parent_id
         })

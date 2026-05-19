@@ -1,3 +1,6 @@
+# 此文件已被 compose.yaml 替代（包含 backend + MySQL + Redis）
+# 保留此文件仅供参考，请使用 docker compose up -d 启动完整服务
+
 services:
   mysql:
     image: mysql:8.0
@@ -12,7 +15,6 @@ services:
       - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./mysql/init:/docker-entrypoint-initdb.d:ro
     command:
       - --default-authentication-plugin=mysql_native_password
       - --character-set-server=utf8mb4

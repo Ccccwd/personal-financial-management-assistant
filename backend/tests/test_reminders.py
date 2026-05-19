@@ -1,7 +1,6 @@
 """
 提醒管理 API 接口测试
 """
-import pytest
 
 
 class TestCreateReminder:

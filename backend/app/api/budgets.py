@@ -3,7 +3,7 @@
 """
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_
+from sqlalchemy import func
 from decimal import Decimal
 from datetime import datetime
 from typing import Optional
@@ -12,8 +12,7 @@ import calendar
 from app.config.database import get_db
 from app.schemas.common import Response
 from app.schemas.budget import (
-    BudgetCreate, BudgetUpdate, BudgetResponse,
-    BudgetWithProgress, BudgetListResponse
+    BudgetCreate, BudgetUpdate, BudgetResponse
 )
 from app.models.user import User
 from app.models.budget import Budget

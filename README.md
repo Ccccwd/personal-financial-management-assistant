@@ -1,5 +1,9 @@
 # 智能个人财务记账系统
 
+[![CI](https://github.com/Ccccwd/personal-financial-management-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/Ccccwd/personal-financial-management-assistant/actions)
+[![Frontend Coverage](https://codecov.io/gh/Ccccwd/personal-financial-management-assistant/branch/main/graph/badge.svg?flag=frontend)](https://codecov.io/gh/Ccccwd/personal-financial-management-assistant)
+[![Backend Coverage](https://codecov.io/gh/Ccccwd/personal-financial-management-assistant/branch/main/graph/badge.svg?flag=backend)](https://codecov.io/gh/Ccccwd/personal-financial-management-assistant)
+
 ## 团队成员
 
 | 姓名 | 学号 | 分工 | 主要负责模块 |

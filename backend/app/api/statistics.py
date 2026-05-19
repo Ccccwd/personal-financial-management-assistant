@@ -3,7 +3,7 @@
 """
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_
+from sqlalchemy import func
 from decimal import Decimal
 from datetime import datetime, timedelta
 from typing import Optional
@@ -11,10 +11,6 @@ import calendar
 
 from app.config.database import get_db
 from app.schemas.common import Response
-from app.schemas.statistics import (
-    MonthlySummary, CategoryDistribution, TrendDataPoint,
-    OverviewResponse, TrendResponse, CategoryStatsItem, CategoryStatsResponse
-)
 from app.models.user import User
 from app.models.transaction import Transaction
 from app.models.category import Category
@@ -108,7 +104,7 @@ async def get_statistics_overview(
     # 总资产（所有启用账户余额之和）
     total_balance = db.query(func.sum(Account.balance)).filter(
         Account.user_id == current_user.id,
-        Account.is_enabled == True
+        Account.is_enabled
     ).scalar() or Decimal("0")
 
     # 分类分布（支出）

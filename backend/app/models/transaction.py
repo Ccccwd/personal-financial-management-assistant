@@ -1,7 +1,7 @@
 """
 交易记录模型
 """
-from sqlalchemy import Column, Integer, String, Numeric, Boolean, DateTime, ForeignKey, JSON, Text
+from sqlalchemy import Column, Integer, String, Numeric, Boolean, DateTime, ForeignKey, JSON, UniqueConstraint
 from sqlalchemy.orm import relationship
 from app.config.database import Base, TimestampMixin
 
@@ -9,6 +9,9 @@ from app.config.database import Base, TimestampMixin
 class Transaction(Base, TimestampMixin):
     """交易记录表"""
     __tablename__ = "transactions"
+    __table_args__ = (
+        UniqueConstraint("user_id", "wechat_transaction_id", name="uq_user_wechat_txn"),
+    )
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True, comment="主键")
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True, comment="用户ID")
@@ -22,7 +25,7 @@ class Transaction(Base, TimestampMixin):
     merchant_name = Column(String(100), nullable=True, comment="商户名称")
     product_name = Column(String(255), nullable=True, comment="商品名称")
     source = Column(String(20), default="manual", nullable=False, index=True, comment="来源")
-    wechat_transaction_id = Column(String(64), unique=True, nullable=True, comment="微信交易流水号")
+    wechat_transaction_id = Column(String(64), nullable=True, comment="微信交易流水号")
     tags = Column(JSON, nullable=True, comment="标签列表")
     location = Column(String(255), nullable=True, comment="地理位置")
     images = Column(JSON, nullable=True, comment="图片URL列表")

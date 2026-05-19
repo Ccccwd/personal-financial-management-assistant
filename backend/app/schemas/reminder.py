@@ -4,7 +4,7 @@
 from typing import Optional, Union
 from datetime import datetime, time
 from decimal import Decimal
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 
 class ReminderBase(BaseModel):

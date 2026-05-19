@@ -142,7 +142,7 @@ const handleRegister = async () => {
     if (valid) {
       loading.value = true
       try {
-        const response = await registerApi({
+        await registerApi({
           username: registerForm.username,
           email: registerForm.email,
           password: registerForm.password

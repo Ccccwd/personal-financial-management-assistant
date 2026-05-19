@@ -17,7 +17,10 @@
       "Bash(python -c \"import json; d=json.load\\(open\\(''docs/postman_collection.json''\\)\\); print\\([i[''name''] for i in d[''item'']]\\)\")",
       "Bash(python -c \"import json; d=json.load\\(open\\(''docs/postman_collection.json'',encoding=''utf-8''\\)\\); print\\([i[''name''] for i in d[''item'']]\\)\")",
       "Bash(python -c \"import json; d=json.load\\(open\\(''docs/postman_collection.json'',encoding=''utf-8''\\)\\); print\\(len\\(d[''item'']\\)\\); ai_folder=[i for i in d[''item''] if ''AI'' in i[''name'']]; print\\(''AI folder:'', ai_folder[0][''name''] if ai_folder else ''NOT FOUND''\\); print\\(''AI requests:'', len\\(ai_folder[0][''item'']\\) if ai_folder else 0\\)\")",
-      "Bash(python -c \":*)"
+      "Bash(python -c \":*)",
+      "Bash(uv lock *)",
+      "Bash(uv pip *)",
+      "Bash(npm install *)"
     ]
   }
 }

@@ -25,8 +25,31 @@ class UserLogin(BaseModel):
 
 class UserUpdate(BaseModel):
     """用户更新 Schema"""
-    username: Optional[str] = Field(None, min_length=2, max_length=50)
-    avatar: Optional[str] = None
+    username: Optional[str] = Field(None, min_length=2, max_length=50, description="用户名")
+    avatar: Optional[str] = Field(None, description="头像URL")
+
+
+class ChangePasswordRequest(BaseModel):
+    """修改密码请求 Schema"""
+    old_password: str = Field(..., description="旧密码")
+    new_password: str = Field(..., min_length=6, max_length=100, description="新密码")
+
+
+class PasswordResetRequest(BaseModel):
+    """密码重置请求 Schema"""
+    email: EmailStr = Field(..., description="邮箱")
+
+
+class PasswordReset(BaseModel):
+    """密码重置确认 Schema"""
+    token: str = Field(..., description="重置令牌")
+    new_password: str = Field(..., min_length=6, max_length=100, description="新密码")
+
+
+class ResetPassword(BaseModel):
+    """直接重置密码 Schema"""
+    email: EmailStr = Field(..., description="邮箱")
+    new_password: str = Field(..., min_length=6, max_length=100, description="新密码")
 
 
 class UserResponse(UserBase):

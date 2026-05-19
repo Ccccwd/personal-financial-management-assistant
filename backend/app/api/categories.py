@@ -10,14 +10,35 @@ from app.config.database import get_db
 from app.schemas.common import Response
 from app.schemas.category import (
     CategoryCreate, CategoryUpdate, CategoryResponse,
-    CategoryTreeResponse, CategoryListResponse
+    CategoryListResponse
 )
 from app.models.user import User
 from app.models.category import Category
 from app.models.transaction import Transaction
 from app.core.dependencies import get_current_active_user
+from app.services.category_service import CategoryService
 
 router = APIRouter()
+category_service = CategoryService()
+
+
+@router.post("/init-system", response_model=Response)
+async def init_system_categories(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    初始化系统预设分类
+
+    为当前用户创建系统预设的分类（如果尚未创建）。
+    已存在的分类不会重复创建。
+    """
+    created = category_service.init_user_categories(db, current_user.id)
+    return Response(
+        code=200,
+        message=f"初始化完成，新建 {len(created)} 个分类",
+        data={"created_count": len(created)}
+    )
 
 
 @router.get("", response_model=Response)
@@ -36,14 +57,14 @@ async def get_categories(
     - **parent_id**: 过滤指定父分类下的子分类
     """
     query = db.query(Category).filter(
-        (Category.user_id == current_user.id) | (Category.is_system == True)
+        (Category.user_id == current_user.id) | (Category.is_system)
     )
 
     if type:
         query = query.filter(Category.type == type)
 
     if not include_system:
-        query = query.filter(Category.is_system == False)
+        query = query.filter(not Category.is_system)
 
     if parent_id is not None:
         query = query.filter(Category.parent_id == parent_id)
@@ -73,14 +94,14 @@ async def get_category_tree(
     返回带有 children 字段的树形结构，便于前端展示层级分类。
     """
     query = db.query(Category).filter(
-        (Category.user_id == current_user.id) | (Category.is_system == True)
+        (Category.user_id == current_user.id) | (Category.is_system)
     )
 
     if type:
         query = query.filter(Category.type == type)
 
     if not include_system:
-        query = query.filter(Category.is_system == False)
+        query = query.filter(not Category.is_system)
 
     all_categories = query.order_by(Category.sort_order, Category.id).all()
 
@@ -120,7 +141,7 @@ async def get_categories_with_stats(
     返回每个分类的交易次数和总金额统计。
     """
     query = db.query(Category).filter(
-        (Category.user_id == current_user.id) | (Category.is_system == True)
+        (Category.user_id == current_user.id) | (Category.is_system)
     )
 
     if type:
@@ -171,7 +192,7 @@ async def get_category(
     """
     category = db.query(Category).filter(
         Category.id == category_id,
-        (Category.user_id == current_user.id) | (Category.is_system == True)
+        (Category.user_id == current_user.id) | (Category.is_system)
     ).first()
 
     if not category:
@@ -209,7 +230,7 @@ async def create_category(
     if category_data.parent_id:
         parent = db.query(Category).filter(
             Category.id == category_data.parent_id,
-            (Category.user_id == current_user.id) | (Category.is_system == True)
+            (Category.user_id == current_user.id) | (Category.is_system)
         ).first()
         if not parent:
             return Response(code=400, message="父分类不存在", data=None)
