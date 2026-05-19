@@ -99,7 +99,7 @@
                 :style="historyIconStyle(item)"
               >
                 <span v-if="item.category?.icon" class="item-icon__emoji">{{ item.category.icon }}</span>
-                <span v-else class="item-icon__fallback">{{ { income: '收', expense: '支', transfer: '转' }[item.type] ?? '?' }}</span>
+                <span v-else class="item-icon__fallback">{{ typeShortLabel(item.type) }}</span>
               </div>
               <!-- 内容 -->
               <div class="item-content">
@@ -302,6 +302,11 @@ const historyIconStyle = (item: any) => {
   return { background: HISTORY_TYPE_BG[item.type] ?? '#6b7280' }
 }
 const typeLabel = (type: string) => ({ income: '收入', expense: '支出', transfer: '转账' }[type] ?? type)
+
+const typeShortLabel = (type: string) => {
+  const map: Record<string, string> = { income: '收', expense: '支', transfer: '转' }
+  return map[type] ?? '?'
+}
 
 // ── 分组 ─────────────────────────────────────────────────
 const groupedItems = computed(() => {
