@@ -127,7 +127,8 @@ curl -I http://localhost:3000/
 
 ## PR 链接
 
-- PR #X: （提交后补充）
+- PR #20: https://github.com/Ccccwd/personal-financial-management-assistant/pull/20 （`feature/曾昭祥-frontend-doc` → `dev`，前端 Docker 容器化）
+- PR #21: https://github.com/Ccccwd/personal-financial-management-assistant/pull/21 （`dev` → `main`，同步至主分支）
 
 ## 遇到的问题和解决
 
