@@ -11,7 +11,7 @@
           @change="fetchData"
           style="width: 140px; margin-right: 12px"
         />
-        <el-button type="primary" :icon="Download" @click="handleExport">导出报表</el-button>
+        <el-button type="primary" :icon="Download" :loading="exporting" @click="handleExport">导出报表</el-button>
       </div>
     </div>
 
@@ -22,10 +22,17 @@
           <div class="stat-title">该月总收入</div>
           <div class="stat-value income-color">¥ {{ formatNumber(overviewData?.monthly_summary?.income || 0) }}</div>
           <div class="stat-compare" v-if="overviewData?.monthly_summary">
-            环比上月 
-            <span :class="overviewData.monthly_summary.income_growth > 0 ? 'growth-good' : 'growth-bad'">
-              {{ formatGrowth(overviewData.monthly_summary.income_growth) }}%
-            </span>
+            <template v-if="isFiniteGrowth(overviewData.monthly_summary.income_growth)">
+              环比上月
+              <span
+                :class="
+                  Number(overviewData.monthly_summary.income_growth) > 0 ? 'growth-good' : 'growth-bad'
+                "
+              >
+                {{ formatGrowth(Number(overviewData.monthly_summary.income_growth)) }}%
+              </span>
+            </template>
+            <span v-else class="growth-neutral">环比上月暂无数据</span>
           </div>
         </el-card>
       </el-col>
@@ -34,10 +41,17 @@
           <div class="stat-title">该月总支出</div>
           <div class="stat-value expense-color">¥ {{ formatNumber(overviewData?.monthly_summary?.expense || 0) }}</div>
           <div class="stat-compare" v-if="overviewData?.monthly_summary">
-            环比上月 
-            <span :class="overviewData.monthly_summary.expense_growth < 0 ? 'growth-good' : 'growth-bad'">
-              {{ formatGrowth(overviewData.monthly_summary.expense_growth) }}%
-            </span>
+            <template v-if="isFiniteGrowth(overviewData.monthly_summary.expense_growth)">
+              环比上月
+              <span
+                :class="
+                  Number(overviewData.monthly_summary.expense_growth) < 0 ? 'growth-good' : 'growth-bad'
+                "
+              >
+                {{ formatGrowth(Number(overviewData.monthly_summary.expense_growth)) }}%
+              </span>
+            </template>
+            <span v-else class="growth-neutral">环比上月暂无数据</span>
           </div>
         </el-card>
       </el-col>
@@ -57,13 +71,13 @@
             <div class="card-header">
               <span>收支趋势</span>
               <el-radio-group v-model="trendType" size="small" @change="renderTrendChart">
-                <el-radio-button value="daily">日</el-radio-button>
-                <el-radio-button value="weekly">周</el-radio-button>
+                <el-radio-button value="daily">{{ isCurrentMonth ? '本月' : currentMonthLabel }}</el-radio-button>
+                <el-radio-button v-if="isCurrentMonth" value="weekly">本周</el-radio-button>
               </el-radio-group>
             </div>
           </template>
           <!-- 避免警告，给出明确高度 -->
-          <div ref="trendChartRef" class="echarts-container"></div>
+          <div ref="trendChartRef" class="chart-container"></div>
         </el-card>
       </el-col>
       <el-col :span="8">
@@ -73,7 +87,7 @@
               <span>支出分类占比</span>
             </div>
           </template>
-          <div ref="pieChartRef" class="echarts-container"></div>
+          <div ref="pieChartRef" class="chart-container"></div>
         </el-card>
       </el-col>
     </el-row>
@@ -118,18 +132,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, shallowRef } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, shallowRef } from 'vue'
 import { Download } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
 import * as echarts from 'echarts'
-import { getStatisticsOverview } from '@/api/statistics'
+import { getStatisticsOverview, exportExcel } from '@/api/statistics'
+import type { StatisticsOverview, ExportRequest } from '@/types/statistics'
 
 // 状态
 const loading = ref(false)
 const currentMonth = ref(dayjs().format('YYYY-MM'))
 const trendType = ref('daily')
 const overviewData = ref<any>(null)
+/** 当前选择的月份是否为系统本月 */
+const isCurrentMonth = computed(() => currentMonth.value === dayjs().format('YYYY-MM'))
+/** 历史月份时显示的标签，如"12月" */
+const currentMonthLabel = computed(() => dayjs(currentMonth.value).format('M月'))
 
 // ECharts 实例
 const trendChartRef = ref<HTMLElement | null>(null)
@@ -142,8 +161,16 @@ const formatNumber = (num: number) => {
   return (num || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 }
 
+/** 后端环比可能为 null，渲染前必须可辨识 */
+const isFiniteGrowth = (n: unknown): n is number => {
+  if (n === null || n === undefined) return false
+  const x = Number(n)
+  return Number.isFinite(x)
+}
+
 const formatGrowth = (num: number) => {
-  return num > 0 ? '+' + num : num.toString()
+  const value = Number(num.toFixed(1))
+  return value > 0 ? `+${value.toFixed(1)}` : value.toFixed(1)
 }
 
 // 渲染趋势图
@@ -154,72 +181,51 @@ const renderTrendChart = () => {
     trendChart.value = echarts.init(trendChartRef.value)
   }
 
-  const data = overviewData.value.trend_data
-  const xData = data.map((d: any) => dayjs(d.date).format('MM-DD'))
-  const incomeData = data.map((d: any) => d.income)
-  const expenseData = data.map((d: any) => d.expense)
+  const allData: any[] = overviewData.value.trend_data
 
-  const option: echarts.EChartsOption = {
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'cross' }
-    },
-    legend: {
-      data: ['支出', '收入'],
-      top: 0
-    },
-    grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '3%',
-      containLabel: true
-    },
-    xAxis: {
-      type: 'category',
-      data: xData,
-      axisLabel: { color: '#6b7280' },
-      axisLine: { lineStyle: { color: '#e5e7eb' } }
-    },
-    yAxis: {
-      type: 'value',
-      axisLabel: { color: '#6b7280' },
-      splitLine: { lineStyle: { color: '#f3f4f6', type: 'dashed' } }
-    },
+  // "本周"：过滤当前自然周（周一~周日）的每日数据，与仪表盘逻辑一致
+  const slice = (() => {
+    if (trendType.value !== 'weekly') return allData
+    const today = dayjs()
+    const dow = today.day()
+    const weekStart = today.subtract(dow === 0 ? 6 : dow - 1, 'day').startOf('day')
+    const weekEnd   = weekStart.add(6, 'day').endOf('day')
+    return allData.filter((d: any) => {
+      const date = dayjs(d.date)
+      return !date.isBefore(weekStart) && !date.isAfter(weekEnd)
+    })
+  })()
+
+  const xData       = slice.map((d: any) => dayjs(d.date).format('MM-DD'))
+  const incomeData  = slice.map((d: any) => d.income  ?? 0)
+  const expenseData = slice.map((d: any) => d.expense ?? 0)
+
+  // 与仪表盘「近期收支趋势」相同的折线面积图配置（DashboardView.updateTrendChart）
+  trendChart.value.setOption({
+    tooltip: { trigger: 'axis' },
+    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+    legend: { data: ['支出', '收入'], top: 0 },
+    xAxis: { type: 'category', boundaryGap: false, data: xData },
+    yAxis: { type: 'value' },
     series: [
       {
         name: '支出',
         type: 'line',
         smooth: true,
-        showSymbol: false,
-        lineStyle: { width: 3, color: '#EF4444' }, // 红色表示支出
-        itemStyle: { color: '#EF4444' },
-        areaStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: 'rgba(239, 68, 68, 0.3)' },
-            { offset: 1, color: 'rgba(239, 68, 68, 0.0)' }
-          ])
-        },
-        data: expenseData
+        areaStyle: { opacity: 0.1 },
+        data: expenseData,
+        itemStyle: { color: '#f56c6c' },
       },
       {
         name: '收入',
         type: 'line',
         smooth: true,
-        showSymbol: false,
-        lineStyle: { width: 3, color: '#16A34A' }, // 绿色表示收入
+        areaStyle: { opacity: 0.1 },
+        data: incomeData,
         itemStyle: { color: '#16A34A' },
-        areaStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: 'rgba(22, 163, 74, 0.3)' },
-            { offset: 1, color: 'rgba(22, 163, 74, 0.0)' }
-          ])
-        },
-        data: incomeData
-      }
-    ]
-  }
-
-  trendChart.value.setOption(option)
+      },
+    ],
+  })
 }
 
 // 渲染分类环形图
@@ -284,43 +290,32 @@ const renderPieChart = () => {
 // 加载数据
 const fetchData = async () => {
   loading.value = true
+  // 历史月份不存在"本周"视图，重置为日视图
+  if (!isCurrentMonth.value && trendType.value === 'weekly') {
+    trendType.value = 'daily'
+  }
   try {
     const [year, month] = currentMonth.value.split('-')
-    const res = await getStatisticsOverview({ 
-      current_year: parseInt(year), 
-      current_month: parseInt(month) 
-    })
-    
-    // 如果真正的后端连上了结构可能嵌套在 data 中，这里兼容
-    const rawData = (res as any)?.data || res
-    
-    if (rawData?.monthly_summary) {
-      overviewData.value = rawData
-    } else {
-      throw new Error("Invalid Format")
-    }
+    const res = await getStatisticsOverview({
+      current_year: parseInt(year),
+      current_month: parseInt(month)
+    }) as unknown as StatisticsOverview
 
-  } catch (error) {
-    console.warn("API调用失败，加载兜底 Mock 数据", error)
-    overviewData.value = {
-      monthly_summary: {
-        income: 18500.00, expense: 7800.50, balance: 10700.50, income_growth: 5.4, expense_growth: -2.1
-      },
-      category_distribution: [
-        { name: '餐饮美食', amount: 3200, percentage: 41.0, color: '#EF4444' },
-        { name: '房租水电', amount: 2500, percentage: 32.1, color: '#3B82F6' },
-        { name: '交通出行', amount: 800, percentage: 10.3, color: '#F59E0B' },
-        { name: '休闲娱乐', amount: 1300.5, percentage: 16.7, color: '#8B5CF6' }
-      ],
-      trend_data: Array.from({length: 30}).map((_, i) => ({
-        date: `2026-04-${String(i+1).padStart(2, '0')}`,
-        income: i % 5 === 0 ? Math.random() * 2000 + 4000 : 0,
-        expense: Math.random() * 400 + 100
-      }))
-    }
+    overviewData.value = res ?? null
+  } catch {
+    overviewData.value = null
   } finally {
     loading.value = false
     nextTick(() => {
+      // 销毁旧实例重新初始化，确保历史数据能正确渲染
+      if (trendChart.value) {
+        trendChart.value.dispose()
+        trendChart.value = null
+      }
+      if (pieChart.value) {
+        pieChart.value.dispose()
+        pieChart.value = null
+      }
       renderTrendChart()
       renderPieChart()
     })
@@ -328,8 +323,23 @@ const fetchData = async () => {
 }
 
 // 导出报表
-const handleExport = () => {
-  ElMessage.success('正在生成 Excel 报表，请稍候...')
+const exporting = ref(false)
+const handleExport = async () => {
+  if (exporting.value) return
+  exporting.value = true
+  try {
+    const [year, month] = currentMonth.value.split('-').map(Number)
+    const startDate = dayjs(`${year}-${String(month).padStart(2, '0')}-01`).format('YYYY-MM-DD')
+    const endDate = dayjs(startDate).endOf('month').format('YYYY-MM-DD')
+    const params: ExportRequest = { start_date: startDate, end_date: endDate }
+    const res = await exportExcel(params) as any
+    const msg = res?.message || '导出任务已提交，请稍后在下载中心查看'
+    ElMessage.success(msg)
+  } catch {
+    // 错误已由请求拦截器统一提示
+  } finally {
+    exporting.value = false
+  }
 }
 
 // 监听窗口大小变化以重新渲染图表
@@ -380,6 +390,20 @@ onUnmounted(() => {
   text-align: center;
   padding: 10px 0;
   border: 1px solid #e5e7eb;
+  height: 130px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* 覆盖 Element Plus 内部 body，保持内容居中 */
+:deep(.stat-card .el-card__body) {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  padding: 16px 20px;
 }
 
 .stat-title {
@@ -413,6 +437,10 @@ onUnmounted(() => {
   font-weight: 600;
 }
 
+.growth-neutral {
+  color: #9ca3af;
+}
+
 .chart-card {
   border-radius: 12px;
   height: 480px;
@@ -426,9 +454,9 @@ onUnmounted(() => {
   border: 1px solid #e5e7eb;
 }
 
-.echarts-container {
+.chart-container {
   width: 100%;
-  height: 380px;
+  height: 300px;
 }
 
 .card-header {

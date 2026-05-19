@@ -1,531 +1,1047 @@
 <template>
   <div class="import-page">
+    <!-- 页头 -->
     <div class="page-header">
-      <h1 class="page-title">账单导入</h1>
-      <div class="header-actions">
-        <el-button color="#111827" plain :icon="Document" @click="downloadTemplate">下载模板使用说明</el-button>
-        <el-button @click="showHistory = true">导入记录</el-button>
+      <div class="page-header__left">
+        <h1 class="page-title">微信账单导入</h1>
+        <p class="page-subtitle">支持微信支付导出的 CSV / XLSX 格式账单文件</p>
+      </div>
+      <div class="page-header__right">
+        <el-button :icon="Clock" plain @click="openHistory">导入历史</el-button>
+        <el-button :icon="QuestionFilled" plain @click="showGuide = true">导出说明</el-button>
       </div>
     </div>
 
-    <el-card class="import-card" shadow="never">
+    <!-- 主卡片 -->
+    <el-card class="main-card" shadow="never">
       <!-- 步骤条 -->
       <el-steps :active="activeStep" finish-status="success" align-center class="import-steps">
-        <el-step title="上传文件" description="选择微信账单 CSV 文件" />
-        <el-step title="数据预览" description="确认格式与导入设置" />
-        <el-step title="导入结果" description="查看成功与失败情况" />
+        <el-step title="上传文件" />
+        <el-step title="预览确认" />
+        <el-step title="导入结果" />
       </el-steps>
 
-      <!-- 第一步：上传区域 -->
-      <div v-if="activeStep === 0" class="step-content step-upload">
+      <!-- ===== STEP 0: 上传 ===== -->
+      <div v-if="activeStep === 0" class="step-body step-upload">
         <el-upload
-          class="upload-area"
+          class="upload-dragger"
           drag
           :auto-upload="false"
           :show-file-list="false"
-          accept=".csv"
+          accept=".csv,.xlsx"
           @change="handleFileChange"
         >
-          <el-icon class="el-icon--upload"><upload-filled /></el-icon>
-          <div class="el-upload__text">
-            将微信账单 CSV 文件拖到此处，或 <em>点击上传</em>
-          </div>
-          <template #tip>
-            <div class="el-upload__tip">
-              请在微信支付中导出账单并解压后，上传后缀为 .csv 的文件。
+          <div class="upload-inner">
+            <div class="upload-icon-wrap">
+              <el-icon class="upload-icon"><UploadFilled /></el-icon>
             </div>
-          </template>
+            <p class="upload-text">拖拽账单文件到此处，或 <em>点击选择</em></p>
+            <p class="upload-hint">支持微信支付导出的 .csv 和 .xlsx 文件，最大 10 MB</p>
+          </div>
         </el-upload>
-        <div v-if="selectedFile" class="selected-file">
-          <el-icon><Document /></el-icon>
-          <span class="file-name">{{ selectedFile.name }}</span>
-          <span class="file-size">{{ (selectedFile.size / 1024).toFixed(1) }} KB</span>
-          <el-button type="primary" :loading="loadingPreview" @click="startPreview" class="btn-next">
-            解析并预览
-          </el-button>
+
+        <!-- 已选文件信息 -->
+        <transition name="slide-down">
+          <div v-if="selectedFile" class="file-info-bar">
+            <div class="file-info-bar__left">
+              <el-icon class="file-icon"><Document /></el-icon>
+              <div>
+                <div class="file-name">{{ selectedFile.name }}</div>
+                <div class="file-meta">{{ formatFileSize(selectedFile.size) }}</div>
+              </div>
+            </div>
+            <div class="file-info-bar__right">
+              <el-button link @click="selectedFile = null">更换文件</el-button>
+              <el-button type="primary" :loading="loadingPreview" @click="startPreview">
+                解析预览 →
+              </el-button>
+            </div>
+          </div>
+        </transition>
+
+        <!-- 快速操作说明 -->
+        <div class="quick-guide">
+          <div class="quick-guide__title">如何导出微信账单？</div>
+          <div class="quick-guide__steps">
+            <div class="guide-step">
+              <span class="guide-step__num">1</span>
+              <span>打开微信 → 我 → 服务 → 钱包</span>
+            </div>
+            <div class="guide-step">
+              <span class="guide-step__num">2</span>
+              <span>点击右上角 账单 → 常见问题 → 下载账单</span>
+            </div>
+            <div class="guide-step">
+              <span class="guide-step__num">3</span>
+              <span>选择时间范围后发送至邮箱，解压压缩包后上传 CSV 或 XLSX 文件</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- 第二步：预览与设置 -->
-      <div v-if="activeStep === 1" class="step-content step-preview" v-loading="loadingPreview">
-        <el-row :gutter="24">
-          <!-- 左侧：预览数据信息 -->
-          <el-col :span="16">
-            <div class="preview-header">
-              <h3>解析概览</h3>
-              <div class="summary-tags">
-                <el-tag type="info">总笔数：{{ previewData?.summary.total_records || 0 }} 笔</el-tag>
-                <el-tag type="success">收入：¥ {{ formatNumber(previewData?.summary.total_income) }}</el-tag>
-                <el-tag type="danger">支出：¥ {{ formatNumber(previewData?.summary.total_expense) }}</el-tag>
-                <el-tag type="warning" v-if="previewData?.summary.potential_duplicates">
-                  潜在重复：{{ previewData.summary.potential_duplicates }} 笔
-                </el-tag>
+      <!-- ===== STEP 1: 预览 ===== -->
+      <div v-if="activeStep === 1" class="step-body step-preview" v-loading="loadingPreview">
+        <div class="preview-layout">
+          <!-- 左侧：摘要 + 表格 -->
+          <div class="preview-main">
+            <!-- 摘要卡片 -->
+            <div class="summary-cards">
+              <div class="summary-card">
+                <div class="summary-card__value">{{ previewData?.total_records ?? 0 }}</div>
+                <div class="summary-card__label">总笔数</div>
               </div>
-              <div class="date-range" v-if="previewData?.summary.start_date">
-                账单周期：{{ previewData.summary.start_date }} 至 {{ previewData.summary.end_date }}
+              <div class="summary-card summary-card--income">
+                <div class="summary-card__value">{{ previewData?.income_count ?? 0 }}</div>
+                <div class="summary-card__label">收入笔数</div>
+              </div>
+              <div class="summary-card summary-card--expense">
+                <div class="summary-card__value">{{ previewData?.expense_count ?? 0 }}</div>
+                <div class="summary-card__label">支出笔数</div>
+              </div>
+              <div v-if="(previewData?.potential_duplicates ?? 0) > 0" class="summary-card summary-card--warn">
+                <div class="summary-card__value">{{ previewData?.potential_duplicates }}</div>
+                <div class="summary-card__label">潜在重复</div>
               </div>
             </div>
 
-            <div class="preview-table">
-              <h4>数据抽样 (前 10 条)</h4>
-              <el-table :data="previewData?.preview_data || []" style="width: 100%" size="small" border>
-                <el-table-column prop="transaction_date" label="交易时间" width="160" />
-                <el-table-column prop="merchant_name" label="交易对象" width="150" show-overflow-tooltip />
-                <el-table-column prop="product_name" label="商品/说明" show-overflow-tooltip />
-                <el-table-column prop="amount" label="金额 (元)" width="100" align="right">
+            <!-- 账单周期 -->
+            <div v-if="previewData?.date_range" class="date-range-bar">
+              <el-icon><Calendar /></el-icon>
+              <span>账单周期：{{ previewData.date_range.start_date }} 至 {{ previewData.date_range.end_date }}</span>
+            </div>
+
+            <!-- 预览表格（前10条） -->
+            <div class="preview-table-wrap">
+              <div class="preview-table-title">数据抽样预览（前 10 条）</div>
+              <el-table
+                :data="previewData?.preview_data ?? []"
+                style="width: 100%"
+                size="small"
+                border
+                stripe
+              >
+                <el-table-column label="交易时间" width="155">
                   <template #default="{ row }">
-                    <span :class="row.amount >= 0 ? 'income' : 'expense'">
-                      {{ row.amount >= 0 ? '+' : '' }}{{ row.amount }}
+                    {{ formatDateTime(row.transaction_time) }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="counterparty" label="交易对方" width="130" show-overflow-tooltip />
+                <el-table-column prop="description" label="商品说明" show-overflow-tooltip />
+                <el-table-column label="收/支" width="70" align="center">
+                  <template #default="{ row }">
+                    <el-tag
+                      :type="row.transaction_type === 'income' ? 'success' : 'danger'"
+                      size="small"
+                      effect="light"
+                    >
+                      {{ row.transaction_type === 'income' ? '收入' : '支出' }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="金额 (元)" width="105" align="right">
+                  <template #default="{ row }">
+                    <span :class="row.transaction_type === 'income' ? 'amount-income' : 'amount-expense'">
+                      {{ row.transaction_type === 'income' ? '+' : '-' }}{{ row.amount.toFixed(2) }}
                     </span>
                   </template>
                 </el-table-column>
-                <el-table-column prop="payment_method" label="支付方式" width="120" />
+                <el-table-column prop="payment_method" label="支付方式" width="115" show-overflow-tooltip />
+                <el-table-column label="" width="32" align="center">
+                  <template #default="{ row }">
+                    <el-tooltip v-if="row.is_potential_duplicate" content="疑似重复交易" placement="top">
+                      <el-icon color="#F59E0B"><WarningFilled /></el-icon>
+                    </el-tooltip>
+                  </template>
+                </el-table-column>
               </el-table>
             </div>
-          </el-col>
-          
+          </div>
+
           <!-- 右侧：导入设置 -->
-          <el-col :span="8">
-            <div class="import-settings">
-              <h3>导入设置</h3>
-              <el-form label-position="top">
-                <el-form-item label="默认资金账户">
-                  <el-select v-model="importConfig.default_account_id" placeholder="请选择收款/付款账户" style="width:100%">
+          <div class="import-settings">
+            <div class="import-settings__title">导入设置</div>
+
+            <el-form label-position="top" class="settings-form">
+              <el-form-item label="导入到账户">
+                <el-select
+                  v-model="importConfig.account_id"
+                  placeholder="请选择账户（可不选）"
+                  clearable
+                  style="width: 100%"
+                  :loading="loadingAccounts"
+                >
+                  <el-option
+                    v-for="acc in accounts"
+                    :key="acc.id"
+                    :label="`${acc.name}（${getAccountTypeName(acc.type)}）`"
+                    :value="acc.id"
+                  />
+                </el-select>
+                <div class="form-hint">不选则自动使用默认账户</div>
+              </el-form-item>
+
+              <el-form-item label="默认分类">
+                <el-select
+                  v-model="importConfig.category_id"
+                  placeholder="不指定（可后续手动分类）"
+                  clearable
+                  style="width: 100%"
+                  :loading="loadingCategories"
+                >
+                  <el-option-group label="支出">
                     <el-option
-                      v-for="acc in accounts"
-                      :key="acc.id"
-                      :label="acc.name + ' (' + getAccountTypeName(acc.type) + ')'"
-                      :value="acc.id"
+                      v-for="cat in expenseCategories"
+                      :key="cat.id"
+                      :label="`${cat.icon ?? ''} ${cat.name}`"
+                      :value="cat.id"
                     />
-                  </el-select>
-                  <div class="setting-hint">非转账交易将默认计入此账户，通常为零钱或银行卡</div>
-                </el-form-item>
+                  </el-option-group>
+                  <el-option-group label="收入">
+                    <el-option
+                      v-for="cat in incomeCategories"
+                      :key="cat.id"
+                      :label="`${cat.icon ?? ''} ${cat.name}`"
+                      :value="cat.id"
+                    />
+                  </el-option-group>
+                </el-select>
+                <div class="form-hint">所有导入记录将使用该分类，可留空后续手动修改</div>
+              </el-form-item>
+            </el-form>
 
-                <el-form-item>
-                  <template #label>
-                    智能分类 (AI)
-                  </template>
-                  <el-switch v-model="importConfig.ai_classify" />
-                  <div class="setting-hint">使用 AI 大模型根据商品名称自动归类，此操作会增加几十秒服务器处理时间</div>
-                </el-form-item>
-
-                <el-form-item>
-                  <template #label>
-                    跳过重复账单
-                  </template>
-                  <el-switch v-model="importConfig.skip_duplicates" />
-                  <div class="setting-hint">对比已有交易单号，防止同月份流水被多次记账</div>
-                </el-form-item>
-              </el-form>
-
-              <div class="step-actions">
-                <el-button @click="activeStep = 0; selectedFile = null" :disabled="loadingImport">重新上传</el-button>
-                <el-button type="primary" @click="executeImport" :loading="loadingImport">确认开始导入</el-button>
-              </div>
+            <div class="auto-dedup-tip">
+              <el-icon color="#16a34a"><CircleCheckFilled /></el-icon>
+              <span>系统自动识别并跳过已导入的重复交易</span>
             </div>
-          </el-col>
-        </el-row>
+
+            <div class="settings-actions">
+              <el-button @click="resetImport" :disabled="loadingImport">重新上传</el-button>
+              <el-button type="primary" :loading="loadingImport" @click="executeImport">
+                确认导入
+              </el-button>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- 第三步：导入结果 -->
-      <div v-if="activeStep === 2" class="step-content step-result">
-        <el-result :icon="importResult?.fail_count === 0 ? 'success' : 'warning'" :title="importResult?.fail_count === 0 ? '导入成功' : '部分导入成功'">
+      <!-- ===== STEP 2: 结果 ===== -->
+      <div v-if="activeStep === 2" class="step-body step-result">
+        <el-result
+          :icon="importResult && importResult.failed_count === 0 ? 'success' : 'warning'"
+          :title="importResult && importResult.failed_count === 0 ? '导入完成' : '部分导入成功'"
+        >
           <template #sub-title>
-            本次共处理 {{ importResult?.total_count || 0 }} 条记录。
-            成功 <span class="income">{{ importResult?.success_count || 0 }}</span> 条，
-            跳过重复 <span class="warning">{{ importResult?.duplicate_count || 0 }}</span> 条，
-            失败 <span class="error-text">{{ importResult?.fail_count || 0 }}</span> 条。
-            <br /><br />
-            <span v-if="importConfig.ai_classify" style="color: #6b7280">AI大模型成功为您分类了 {{ importResult?.ai_classified_count || 0 }} 条记录。</span>
+            <div class="result-stats">
+              <div class="result-stat">
+                <span class="result-stat__num result-stat__num--total">{{ importResult?.total ?? 0 }}</span>
+                <span class="result-stat__label">共处理</span>
+              </div>
+              <div class="result-stat">
+                <span class="result-stat__num result-stat__num--success">{{ importResult?.success_count ?? 0 }}</span>
+                <span class="result-stat__label">成功入账</span>
+              </div>
+              <div class="result-stat">
+                <span class="result-stat__num result-stat__num--skip">{{ importResult?.skipped_count ?? 0 }}</span>
+                <span class="result-stat__label">跳过重复</span>
+              </div>
+              <div v-if="(importResult?.failed_count ?? 0) > 0" class="result-stat">
+                <span class="result-stat__num result-stat__num--fail">{{ importResult?.failed_count }}</span>
+                <span class="result-stat__label">处理失败</span>
+              </div>
+            </div>
           </template>
           <template #extra>
-            <el-button @click="resetImport">继续导入更多</el-button>
-            <el-button type="primary" @click="$router.push('/transactions')">前往查看流水</el-button>
+            <!-- AI 批量分类区域 -->
+            <div class="ai-classify-block">
+              <template v-if="!aiClassifyState.done">
+                <el-button
+                  type="success"
+                  :loading="aiClassifyState.loading"
+                  @click="runAIBatchClassify"
+                >
+                  <el-icon v-if="!aiClassifyState.loading"><MagicStick /></el-icon>
+                  {{ aiClassifyState.loading ? `AI 识别中 (${aiClassifyState.current}/${aiClassifyState.total})` : 'AI 智能分类' }}
+                </el-button>
+                <div class="ai-classify-hint">由 AI 自动识别未分类账单的交易类别</div>
+              </template>
+              <el-alert
+                v-else
+                type="success"
+                :closable="false"
+                show-icon
+                style="margin-bottom:8px"
+              >
+                AI 已完成识别：{{ aiClassifyState.successCount }}/{{ aiClassifyState.total }} 条成功分类
+              </el-alert>
+            </div>
+            <div class="result-actions">
+              <el-button @click="resetImport">继续导入</el-button>
+              <el-button type="primary" @click="$router.push('/transactions')">查看账单流水</el-button>
+            </div>
           </template>
         </el-result>
       </div>
     </el-card>
 
-    <!-- 导入记录抽屉 -->
-    <el-drawer
-      v-model="showHistory"
-      title="导入历史记录"
-      size="50%"
-    >
-      <el-table :data="historyLogs" v-loading="loadingHistory" style="width: 100%">
-        <el-table-column prop="import_time" label="导入时间" width="160">
+    <!-- ===== 导入历史抽屉 ===== -->
+    <el-drawer v-model="showHistory" title="导入历史记录" size="480px" destroy-on-close>
+      <el-table
+        :data="historyLogs"
+        v-loading="loadingHistory"
+        style="width: 100%"
+        empty-text="暂无导入记录"
+      >
+        <el-table-column label="导入时间" width="155">
+          <template #default="{ row }">{{ formatDateTime(row.created_at) }}</template>
+        </el-table-column>
+        <el-table-column label="文件名" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.file_name || row.source }}</template>
+        </el-table-column>
+        <el-table-column label="结果" width="150">
           <template #default="{ row }">
-            {{ formatTime(row.import_time) }}
+            <div class="log-result">
+              <span class="log-result__success">✓ {{ row.success_records }}</span>
+              <span v-if="row.skipped_records > 0" class="log-result__skip">⊘ {{ row.skipped_records }}</span>
+              <span v-if="row.failed_records > 0" class="log-result__fail">✕ {{ row.failed_records }}</span>
+            </div>
           </template>
         </el-table-column>
-        <el-table-column prop="source" label="来源文件" show-overflow-tooltip />
-        <el-table-column label="结果状态" width="180">
+        <el-table-column label="状态" width="80" align="center">
           <template #default="{ row }">
-            <div><span class="income">成功入库: {{ row.success_count }}</span></div>
-            <div><span class="warning">过滤重复: {{ row.duplicate_count }}</span></div>
-            <div v-if="row.fail_count > 0"><span class="expense">处理失败: {{ row.fail_count }}</span></div>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="80" align="center">
-          <template #default="{ row }">
-            <el-button v-if="row.fail_count > 0" link type="primary">报错详情</el-button>
+            <el-tag
+              :type="row.status === 'completed' ? 'success' : row.status === 'partial' ? 'warning' : 'danger'"
+              size="small"
+              effect="light"
+            >
+              {{ statusLabel(row.status) }}
+            </el-tag>
           </template>
         </el-table-column>
       </el-table>
     </el-drawer>
+
+    <!-- ===== 导出说明对话框 ===== -->
+    <el-dialog v-model="showGuide" title="微信账单导出说明" width="480px" align-center>
+      <ol class="guide-list">
+        <li>打开手机微信，依次点击 <strong>我 → 服务 → 钱包</strong></li>
+        <li>点击页面右上角 <strong>账单</strong>，进入账单页面</li>
+        <li>点击右上角 <strong>···</strong>，选择 <strong>常见问题</strong></li>
+        <li>点击 <strong>下载账单</strong>，选择账单类型与时间范围</li>
+        <li>账单将通过邮件发送，<strong>解压附件</strong>后得到 .csv 文件</li>
+        <li>将该文件上传至本页即可完成导入</li>
+      </ol>
+      <template #footer>
+        <el-button type="primary" @click="showGuide = false">知道了</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { UploadFilled, Document } from '@element-plus/icons-vue'
+import { ref, reactive, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import {
+  UploadFilled, Document, Clock, QuestionFilled,
+  Calendar, CircleCheckFilled, WarningFilled, MagicStick,
+} from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import type { UploadFile } from 'element-plus'
 import dayjs from 'dayjs'
+
 import { previewBill, importBill, getImportLogs } from '@/api/wechat'
 import { getAccounts } from '@/api/accounts'
+import { getCategories } from '@/api/categories'
+import { getTransactions } from '@/api/transactions'
+import { reclassifyTransaction } from '@/api/ai'
 
+import type { ImportPreviewResponse, ImportResult, ImportLog } from '@/types/wechat'
+import type { AccountListPayload } from '@/types/account'
+import type { CategoryListPayload, Category } from '@/types/category'
+
+const router = useRouter()
+
+// ── 步骤状态 ──────────────────────────────────────────────
 const activeStep = ref(0)
 const selectedFile = ref<File | null>(null)
+
 const loadingPreview = ref(false)
-const loadingImport = ref(false)
+const loadingImport  = ref(false)
+const loadingAccounts    = ref(false)
+const loadingCategories  = ref(false)
 
-const previewData = ref<any>(null)
-const importResult = ref<any>(null)
-const accounts = ref<any[]>([])
+// ── 数据 ─────────────────────────────────────────────────
+const previewData  = ref<ImportPreviewResponse | null>(null)
+const importResult = ref<ImportResult | null>(null)
 
-const importConfig = reactive({
-  default_account_id: undefined as number | undefined,
-  ai_classify: true,
-  skip_duplicates: true
+// ── AI 批量分类 ────────────────────────────────────────────
+const aiClassifyState = reactive({
+  loading: false,
+  done: false,
+  total: 0,
+  current: 0,
+  successCount: 0,
 })
 
-// 历史记录
-const showHistory = ref(false)
+const accounts   = ref<{ id: number; name: string; type: string }[]>([])
+const allCategories = ref<Category[]>([])
+
+const expenseCategories = computed(() => allCategories.value.filter(c => c.type === 'expense'))
+const incomeCategories  = computed(() => allCategories.value.filter(c => c.type === 'income'))
+
+const importConfig = reactive({
+  account_id:  undefined as number | undefined,
+  category_id: undefined as number | undefined,
+})
+
+// ── 历史记录 ──────────────────────────────────────────────
+const showHistory    = ref(false)
 const loadingHistory = ref(false)
-const historyLogs = ref<any[]>([])
+const historyLogs    = ref<ImportLog[]>([])
 
-const formatNumber = (num?: number) => {
-  return (num || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+// ── 对话框 ────────────────────────────────────────────────
+const showGuide = ref(false)
+
+// ── 格式化工具 ────────────────────────────────────────────
+const formatFileSize = (bytes: number) => {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
-const formatTime = (time: string) => {
-  return dayjs(time).format('YYYY-MM-DD HH:mm')
-}
+const formatDateTime = (val: string) => dayjs(val).format('YYYY-MM-DD HH:mm')
 
 const getAccountTypeName = (type: string) => {
   const map: Record<string, string> = {
-    cash: '现金', bank: '银行卡', wechat: '微信', alipay: '支付宝', meal_card: '饭卡', other: '其它'
+    cash: '现金', bank: '银行卡', wechat: '微信', alipay: '支付宝',
+    meal_card: '饭卡', credit: '信用卡', other: '其它',
   }
-  return map[type] || type
+  return map[type] ?? type
 }
 
-const loadDependencyData = async () => {
+const statusLabel = (status: string) => {
+  const map: Record<string, string> = {
+    completed: '完成', partial: '部分', failed: '失败',
+    processing: '处理中', pending: '待处理',
+  }
+  return map[status] ?? status
+}
+
+// ── 加载基础数据 ──────────────────────────────────────────
+const loadAccounts = async () => {
+  loadingAccounts.value = true
   try {
-    const listRes = await getAccounts()
-    const listData = listRes as any
-    if (listData?.accounts) {
-      accounts.value = listData.accounts
-      // 默认选中第一个
-      if (accounts.value.length > 0) {
-        importConfig.default_account_id = accounts.value[0].id
-      }
+    const res = await getAccounts() as unknown as AccountListPayload
+    accounts.value = res?.accounts ?? []
+    if (accounts.value.length && !importConfig.account_id) {
+      const defaultAcc = accounts.value.find((a: any) => a.is_default) ?? accounts.value[0]
+      importConfig.account_id = defaultAcc.id
     }
-  } catch (error) {
-    accounts.value = [
-      { id: 1, name: '招商银行信用卡', type: 'bank' },
-      { id: 2, name: '微信零钱', type: 'wechat' }
-    ]
-    importConfig.default_account_id = 2
+  } catch {
+    accounts.value = []
+  } finally {
+    loadingAccounts.value = false
   }
 }
 
+const loadCategories = async () => {
+  loadingCategories.value = true
+  try {
+    const res = await getCategories() as unknown as CategoryListPayload
+    allCategories.value = res?.categories ?? []
+  } catch {
+    allCategories.value = []
+  } finally {
+    loadingCategories.value = false
+  }
+}
+
+// ── 文件选择 ──────────────────────────────────────────────
 const handleFileChange = (uploadFile: UploadFile) => {
   if (uploadFile.raw) {
     selectedFile.value = uploadFile.raw
   }
 }
 
+// ── Step 0 → 1: 预览 ──────────────────────────────────────
 const startPreview = async () => {
   if (!selectedFile.value) {
     ElMessage.warning('请先选择文件')
     return
   }
-  
   loadingPreview.value = true
   try {
-    const res = await previewBill(selectedFile.value)
-    previewData.value = (res as any)?.data || res
+    const res = await previewBill(selectedFile.value) as unknown as ImportPreviewResponse
+    previewData.value = res
     activeStep.value = 1
-  } catch (error) {
-    console.warn("预览 API 失败，注入 Mock 数据")
-    // Mock Data Fallback
-    previewData.value = {
-      summary: {
-        total_records: 142,
-        income_count: 12,
-        expense_count: 130,
-        total_income: 15400.0,
-        total_expense: 3450.5,
-        start_date: '2026-03-01',
-        end_date: '2026-03-31',
-        potential_duplicates: 2
-      },
-      preview_data: [
-        { transaction_date: '2026-03-31 18:30:00', merchant_name: '星巴克', product_name: '拿铁咖啡大杯', amount: -32.0, payment_method: '零钱' },
-        { transaction_date: '2026-03-30 09:12:00', merchant_name: '腾讯乘车码', product_name: '广州地铁二维码', amount: -5.0, payment_method: '招商银行(1234)' },
-        { transaction_date: '2026-03-29 12:00:00', merchant_name: '公司财务', product_name: '3月工资发放', amount: 15000.0, payment_method: '招商银行(1234)' },
-        { transaction_date: '2026-03-28 20:15:00', merchant_name: '美团外卖', product_name: '麦当劳订单', amount: -45.5, payment_method: '零钱' },
-        { transaction_date: '2026-03-27 10:00:00', merchant_name: '全家便利店', product_name: '便当及饮料', amount: -18.9, payment_method: '零钱' }
-      ]
-    }
-    setTimeout(() => {
-      loadingPreview.value = false
-      activeStep.value = 1
-    }, 800)
+  } finally {
+    loadingPreview.value = false
   }
 }
 
+// ── Step 1 → 2: 导入 ──────────────────────────────────────
 const executeImport = async () => {
-  if (!importConfig.default_account_id) {
-    ElMessage.warning('请确保选择了默认资金账户')
+  if (!selectedFile.value) {
+    ElMessage.warning('缺少文件，请重新上传')
     return
   }
-
   loadingImport.value = true
   try {
     const res = await importBill({
-      file: selectedFile.value!,
-      skip_duplicates: importConfig.skip_duplicates,
-      ai_classify: importConfig.ai_classify,
-      default_account_id: importConfig.default_account_id
-    })
-    importResult.value = (res as any)?.data || res
+      file: selectedFile.value,
+      account_id:  importConfig.account_id,
+      category_id: importConfig.category_id,
+    }) as unknown as ImportResult
+    importResult.value = res
     activeStep.value = 2
-  } catch (error) {
-    console.warn("导入 API 失败，注入 Mock 数据")
-    ElMessage.info('后端服务未启动，当前模拟导入效果，耗时1.5秒')
-    setTimeout(() => {
-      loadingImport.value = false
-      importResult.value = {
-        total_count: previewData.value?.summary?.total_records || 142,
-        success_count: 140,
-        duplicate_count: 2,
-        fail_count: 0,
-        ai_classified_count: 125
-      }
-      activeStep.value = 2
-      loadHistory()
-    }, 1500)
+    // 刷新历史列表
+    loadHistory()
+  } finally {
+    loadingImport.value = false
   }
 }
 
+// ── 重置流程 ──────────────────────────────────────────────
 const resetImport = () => {
-  activeStep.value = 0
+  activeStep.value   = 0
   selectedFile.value = null
-  previewData.value = null
+  previewData.value  = null
   importResult.value = null
-  importConfig.default_account_id = accounts.value.length > 0 ? accounts.value[0].id : undefined
+  importConfig.category_id = undefined
+  aiClassifyState.loading = false
+  aiClassifyState.done    = false
+  aiClassifyState.total   = 0
+  aiClassifyState.current = 0
+  aiClassifyState.successCount = 0
+}
+
+const runAIBatchClassify = async () => {
+  if (!previewData.value?.date_range) return
+  aiClassifyState.loading = true
+  aiClassifyState.done    = false
+  aiClassifyState.total   = 0
+  aiClassifyState.current = 0
+  aiClassifyState.successCount = 0
+
+  try {
+    const { start_date, end_date } = previewData.value.date_range
+    const listRes = await getTransactions({
+      start_date,
+      end_date,
+      page_size: 500,
+      page: 1,
+    }) as any
+    const all: any[] = listRes?.transactions ?? listRes?.data?.transactions ?? []
+    const uncategorized = all.filter((t: any) => !t.category_id)
+    aiClassifyState.total = uncategorized.length
+
+    if (uncategorized.length === 0) {
+      ElMessage.info('该批账单已全部完成分类，无需 AI 识别')
+      aiClassifyState.done = true
+      return
+    }
+
+    for (const txn of uncategorized) {
+      try {
+        const res = await reclassifyTransaction(txn.id, false) as any
+        if (res?.category_id || res?.data?.category_id) {
+          aiClassifyState.successCount++
+        }
+      } catch {
+        // 单条失败不中断
+      }
+      aiClassifyState.current++
+    }
+
+    aiClassifyState.done = true
+    ElMessage.success(`AI 分类完成：${aiClassifyState.successCount}/${aiClassifyState.total} 条成功识别`)
+  } catch {
+    ElMessage.error('AI 批量分类失败，请稍后重试')
+  } finally {
+    aiClassifyState.loading = false
+  }
+}
+
+// ── 历史记录 ──────────────────────────────────────────────
+const openHistory = () => {
+  showHistory.value = true
+  loadHistory()
 }
 
 const loadHistory = async () => {
   loadingHistory.value = true
   try {
-    const res = await getImportLogs()
-    const rawData = (res as any)?.data || res
-    if (rawData?.logs) {
-      historyLogs.value = rawData.logs
-    }
-  } catch (error) {
-    historyLogs.value = [
-      { import_time: new Date().toISOString(), source: '微信账单(近期).csv', success_count: 140, duplicate_count: 2, fail_count: 0 },
-      { import_time: '2026-03-01T10:00:00Z', source: 'alipay_record_202602.csv', success_count: 89, duplicate_count: 0, fail_count: 3 }
-    ]
+    const res = await getImportLogs({ page: 1, page_size: 50 }) as unknown as { logs: ImportLog[] }
+    historyLogs.value = res?.logs ?? []
+  } catch {
+    historyLogs.value = []
   } finally {
     loadingHistory.value = false
   }
 }
 
-const downloadTemplate = () => {
-  ElMessage.info('操作说明：在微信中点击 我->服务->钱包->账单->常见问题->下载账单。解压后即为所需 CSV 文件')
-}
-
 onMounted(() => {
-  loadDependencyData()
-  loadHistory()
+  loadAccounts()
+  loadCategories()
 })
 </script>
 
 <style scoped>
+/* ── 页面布局 ─────────────────────────────────────────────── */
 .import-page {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .page-title {
-  margin: 0;
-  font-size: 24px;
+  margin: 0 0 4px;
+  font-size: 22px;
   font-weight: 700;
   color: #111827;
 }
 
-.import-card {
+.page-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.page-header__right {
+  display: flex;
+  gap: 10px;
+}
+
+.main-card {
   border-radius: 12px;
   border: 1px solid #e5e7eb;
-  min-height: 500px;
 }
 
+/* ── 步骤条 ──────────────────────────────────────────────── */
 .import-steps {
-  margin: 30px 0 40px;
-  padding: 0 40px;
+  padding: 24px 60px 32px;
 }
 
-.step-content {
-  padding: 0 20px 40px;
+/* ── 步骤通用容器 ────────────────────────────────────────── */
+.step-body {
+  padding: 0 24px 36px;
 }
 
-/* 上传区样式 */
+/* ── Step 0: 上传 ────────────────────────────────────────── */
 .step-upload {
   display: flex;
   flex-direction: column;
   align-items: center;
-  max-width: 600px;
+  gap: 20px;
+  max-width: 680px;
   margin: 0 auto;
 }
 
-.upload-area {
+.upload-dragger {
   width: 100%;
 }
 
-.selected-file {
-  width: 100%;
-  margin-top: 24px;
-  padding: 16px 20px;
-  background-color: #f9fafb;
-  border-radius: 8px;
+.upload-inner {
+  padding: 36px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.upload-icon-wrap {
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+  border-radius: 16px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  border: 1px solid #e5e7eb;
+  justify-content: center;
+  margin-bottom: 4px;
 }
 
-.file-name {
-  font-weight: 600;
-  color: #111827;
-  flex: 1;
+.upload-icon {
+  font-size: 32px;
+  color: #16a34a;
 }
 
-.file-size {
-  color: #6b7280;
-  font-size: 13px;
-  margin-right: 16px;
-}
-
-.btn-next {
-  margin-left: auto;
-}
-
-/* 预览区样式 */
-.preview-header {
-  background-color: #f9fafb;
-  padding: 16px 20px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  border: 1px solid #e5e7eb;
-}
-
-.preview-header h3 {
-  margin: 0 0 12px;
-  font-size: 16px;
-  color: #111827;
-}
-
-.summary-tags {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 12px;
-}
-
-.date-range {
-  font-size: 13px;
-  color: #6b7280;
-}
-
-.preview-table h4 {
-  margin: 0 0 12px;
+.upload-text {
+  margin: 0;
   font-size: 15px;
   color: #374151;
 }
 
-.import-settings {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 20px;
+.upload-text em {
+  color: #16a34a;
+  font-style: normal;
+  font-weight: 600;
 }
 
-.import-settings h3 {
-  margin: 0 0 16px;
-  font-size: 16px;
-  color: #111827;
-  border-bottom: 1px solid #f3f4f6;
-  padding-bottom: 12px;
-}
-
-.setting-hint {
+.upload-hint {
+  margin: 0;
   font-size: 12px;
   color: #9ca3af;
-  line-height: 1.4;
+}
+
+/* 已选文件信息栏 */
+.file-info-bar {
+  width: 100%;
+  padding: 14px 18px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.file-info-bar__left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.file-icon {
+  font-size: 28px;
+  color: #3b82f6;
+}
+
+.file-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.file-meta {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+.file-info-bar__right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* 快速指引 */
+.quick-guide {
+  width: 100%;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  padding: 16px 20px;
+}
+
+.quick-guide__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #15803d;
+  margin-bottom: 12px;
+}
+
+.quick-guide__steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.guide-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  color: #374151;
+}
+
+.guide-step__num {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  background: #16a34a;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 动画 */
+.slide-down-enter-active,
+.slide-down-leave-active {
+  transition: all 0.25s ease;
+}
+
+.slide-down-enter-from,
+.slide-down-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+/* ── Step 1: 预览 ────────────────────────────────────────── */
+.preview-layout {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.preview-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 摘要卡片组 */
+.summary-cards {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.summary-card {
+  flex: 1;
+  min-width: 100px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 14px 16px;
+  text-align: center;
+}
+
+.summary-card--income {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.summary-card--expense {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.summary-card--warn {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.summary-card__value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.2;
+}
+
+.summary-card--income .summary-card__value { color: #16a34a; }
+.summary-card--expense .summary-card__value { color: #ef4444; }
+.summary-card--warn .summary-card__value    { color: #d97706; }
+
+.summary-card__label {
+  font-size: 12px;
+  color: #6b7280;
   margin-top: 4px;
 }
 
-.step-actions {
+/* 账单周期 */
+.date-range-bar {
   display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 32px;
-  padding-top: 20px;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #6b7280;
+  padding: 8px 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+/* 预览表格 */
+.preview-table-wrap {
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.preview-table-title {
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.amount-income {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.amount-expense {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+/* 导入设置面板 */
+.import-settings {
+  width: 280px;
+  flex-shrink: 0;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.import-settings__title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #111827;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.settings-form {
+  flex: 1;
+}
+
+.form-hint {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.auto-dedup-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 12px;
+  color: #16a34a;
+  background: #f0fdf4;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.settings-actions {
+  display: flex;
+  gap: 10px;
+  padding-top: 12px;
   border-top: 1px solid #f3f4f6;
 }
 
-/* 结果区样式 */
+.settings-actions .el-button {
+  flex: 1;
+}
+
+/* ── Step 2: 结果 ────────────────────────────────────────── */
 .step-result {
   max-width: 600px;
-  margin: 20px auto 0;
+  margin: 0 auto;
 }
 
-.error-text {
-  color: #EF4444;
+.result-stats {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.result-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.result-stat__num {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.result-stat__num--total   { color: #374151; }
+.result-stat__num--success { color: #16a34a; }
+.result-stat__num--skip    { color: #d97706; }
+.result-stat__num--fail    { color: #ef4444; }
+
+.result-stat__label {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+/* ── 历史记录 ────────────────────────────────────────────── */
+.log-result {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
   font-weight: 600;
 }
-.income { color: #16A34A; }
-.expense { color: #EF4444; }
-.warning { color: #F59E0B; }
 
-/* Material Primary Color overrides */
+.log-result__success { color: #16a34a; }
+.log-result__skip    { color: #d97706; }
+.log-result__fail    { color: #ef4444; }
+
+/* ── 说明弹窗 ────────────────────────────────────────────── */
+.guide-list {
+  padding-left: 20px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.6;
+}
+
+/* ── Element Plus 主题覆盖 ───────────────────────────────── */
 :deep(.el-button--primary) {
-  --el-button-bg-color: #16A34A;
-  --el-button-border-color: #16A34A;
-  --el-button-hover-bg-color: #15803D;
-  --el-button-hover-border-color: #15803D;
+  --el-button-bg-color: #16a34a;
+  --el-button-border-color: #16a34a;
+  --el-button-hover-bg-color: #15803d;
+  --el-button-hover-border-color: #15803d;
 }
-:deep(.el-step__head.is-success) {
-  color: #16A34A;
-  border-color: #16A34A;
-}
+
+:deep(.el-step__head.is-success),
 :deep(.el-step__title.is-success) {
-  color: #16A34A;
+  color: #16a34a;
+  border-color: #16a34a;
 }
-:deep(.el-switch.is-checked .el-switch__core) {
-  background-color: #16A34A;
-  border-color: #16A34A;
+
+:deep(.el-step__head.is-process) {
+  color: #16a34a;
+  border-color: #16a34a;
+}
+
+.ai-classify-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.ai-classify-hint {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.result-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
 }
 </style>
