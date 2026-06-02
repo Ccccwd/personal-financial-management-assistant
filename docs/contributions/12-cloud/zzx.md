@@ -40,7 +40,8 @@
 
 ## 在线地址
 
-- 前端（Vercel）：（已部署成功，请替换为你的实际 Vercel 线上链接）
+- 前端（Vercel）：https://personal-financial-management-assis.vercel.app
+- 后端 API（Railway）：https://personal-financial-management-assistant-production.up.railway.app/api
 
 ## AI 使用情况
 
