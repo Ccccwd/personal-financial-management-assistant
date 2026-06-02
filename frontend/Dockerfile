@@ -2,14 +2,25 @@
 # Stage: development — 开发环境（热重载，配合 compose volume 挂载）
 # 构建：docker build --target development -t finance-frontend:dev ./frontend
 # =============================================================================
-FROM node:20-alpine AS development
+FROM node:20-bookworm-slim AS development
 
 WORKDIR /app
 
+# 国内网络：使用 npmmirror，并增加拉包重试
+ENV NPM_CONFIG_REGISTRY=https://registry.npmmirror.com \
+    NPM_CONFIG_FETCH_RETRIES=5 \
+    NPM_CONFIG_FETCH_RETRY_MINTIMEOUT=20000 \
+    NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT=120000
+
 COPY package.json package-lock.json ./
-RUN npm ci
+# npm ci 在容器内常漏装 Rollup 平台包，需与 lock 中 rollup 版本一致显式安装
+RUN npm ci \
+    && npm install @rollup/rollup-linux-x64-gnu@4.60.0 --no-save
 
 COPY . .
+
+RUN apt-get update && apt-get install -y --no-install-recommends wget \
+    && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 3000
 
@@ -19,14 +30,20 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3000"]
 
 # =============================================================================
-# Stage: builder — 构建静态资源
+# Stage: builder — 构建静态资源（Debian glibc）
 # =============================================================================
-FROM node:20-alpine AS builder
+FROM node:20-bookworm-slim AS builder
 
 WORKDIR /app
 
+ENV NPM_CONFIG_REGISTRY=https://registry.npmmirror.com \
+    NPM_CONFIG_FETCH_RETRIES=5 \
+    NPM_CONFIG_FETCH_RETRY_MINTIMEOUT=20000 \
+    NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT=120000
+
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci \
+    && npm install @rollup/rollup-linux-x64-gnu@4.60.0 --no-save
 
 COPY . .
 

@@ -9,6 +9,9 @@ WORKDIR /app
 # 先复制依赖文件，利用 Docker 缓存
 COPY pyproject.toml uv.lock ./
 
+# 使用国内 PyPI 镜像，避免构建时访问 files.pythonhosted.org 超时
+ENV UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+
 # 使用 uv 安装依赖到虚拟环境
 RUN uv sync --frozen --no-dev --no-install-project
 

@@ -3,8 +3,6 @@ import { ElMessage } from 'element-plus'
 import { TokenManager } from '@/utils/auth'
 import { APIResponse } from '@/types'
 
-type RequestMethod = <T = any>(url: string, config?: AxiosRequestConfig) => Promise<T>
-
 interface RequestInstance extends Omit<AxiosInstance, 'get' | 'post' | 'put' | 'delete' | 'patch'> {
   get<T = any>(url: string, config?: AxiosRequestConfig): Promise<T>
   post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T>

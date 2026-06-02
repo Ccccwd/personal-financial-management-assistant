@@ -339,7 +339,6 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import {
   UploadFilled, Document, Clock, QuestionFilled,
   Calendar, CircleCheckFilled, WarningFilled, MagicStick,
@@ -357,8 +356,6 @@ import { reclassifyTransaction } from '@/api/ai'
 import type { ImportPreviewResponse, ImportResult, ImportLog } from '@/types/wechat'
 import type { AccountListPayload } from '@/types/account'
 import type { CategoryListPayload, Category } from '@/types/category'
-
-const router = useRouter()
 
 // ── 步骤状态 ──────────────────────────────────────────────
 const activeStep = ref(0)
