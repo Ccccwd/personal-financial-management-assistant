@@ -67,7 +67,7 @@ describe('TransactionCard 组件', () => {
     expect(wrapper.find('.item-title').text()).toBe('餐饮')
   })
 
-  it('6. 无任何名称时显示"未分类"', () => {
+  it('6. 无任何名称时显示类型文案', () => {
     const wrapper = mount(TransactionCard, {
       props: {
         transaction: {
@@ -77,14 +77,14 @@ describe('TransactionCard 组件', () => {
         }
       }
     })
-    expect(wrapper.find('.item-title').text()).toBe('未分类')
+    expect(wrapper.find('.item-title').text()).toBe('支出')
   })
 
-  it('7. 分类图标显示首字母（大写）', () => {
+  it('7. 无分类图标时显示类型兜底字符', () => {
     const wrapper = mount(TransactionCard, {
       props: { transaction: { ...baseTransaction, category_name: '餐饮' } }
     })
-    expect(wrapper.find('.icon-text').text()).toBe('餐')
+    expect(wrapper.find('.icon-fallback').text()).toBe('支')
   })
 
   it('8. 备注超过10个字符时显示省略号', () => {
@@ -95,7 +95,7 @@ describe('TransactionCard 组件', () => {
       }
     })
     const remarkEl = wrapper.find('.remark')
-    expect(remarkEl.text()).toContain('...')
+    expect(remarkEl.text()).toContain('…')
     expect(remarkEl.text().length).toBeLessThanOrEqual(13)
   })
 
@@ -103,14 +103,14 @@ describe('TransactionCard 组件', () => {
     const wrapper = mount(TransactionCard, {
       props: { transaction: { ...baseTransaction, remark: '午餐' } }
     })
-    expect(wrapper.find('.divider').exists()).toBe(true)
+    expect(wrapper.find('.meta-dot').exists()).toBe(true)
   })
 
   it('10. 无备注时不显示分隔符', () => {
     const wrapper = mount(TransactionCard, {
       props: { transaction: { ...baseTransaction, remark: undefined } }
     })
-    expect(wrapper.find('.divider').exists()).toBe(false)
+    expect(wrapper.find('.meta-dot').exists()).toBe(false)
   })
 
   it('11. 支出金额应用正确的CSS类名（is-expense）', () => {
