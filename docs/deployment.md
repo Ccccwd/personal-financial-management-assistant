@@ -158,6 +158,6 @@ app.add_middleware(
 
 ## 7. 在线地址
 
-- 后端 API：[Railway 部署后填写]
-- 前端页面：[Vercel 部署后填写]
-- API 文档：[后端地址]/redoc
+- 后端 API：https://personal-financial-management-assistant-production.up.railway.app/api
+- 前端页面：https://personal-financial-management-assis.vercel.app
+- API 文档：https://personal-financial-management-assistant-production.up.railway.app/redoc
