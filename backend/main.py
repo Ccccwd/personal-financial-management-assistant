@@ -1,7 +1,6 @@
 """
 智能个人财务记账系统 - FastAPI 应用入口
 """
-import logging
 from contextlib import asynccontextmanager
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -14,8 +13,15 @@ from app.config.database import engine, Base
 from app.api import api_router
 from app.core.exceptions import setup_exception_handlers
 from app.core.rate_limiter import RateLimitMiddleware
+from app.core.metrics import MetricsMiddleware
+from app.utils.logger import setup_logging, get_logger
 
-logger = logging.getLogger(__name__)
+# 初始化结构化日志（JSON 格式在生产环境启用）
+setup_logging(
+    debug=settings.debug,
+    json_output=(settings.app_env == "production"),
+)
+logger = get_logger(__name__)
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -70,6 +76,9 @@ app.add_middleware(SecurityHeadersMiddleware)
 
 # 速率限制中间件
 app.add_middleware(RateLimitMiddleware)
+
+# 请求指标收集中间件
+app.add_middleware(MetricsMiddleware)
 
 # 设置 CORS 中间件
 app.add_middleware(
