@@ -8,47 +8,8 @@
 
 ### 1. 平台选择
 
-- 使用平台：**Vercel**（前端部署）
-- 后端平台：**Railway**（后端同学已完成）
-
-### 2. 部署配置
-
-- [x] 配置文件编写（`vercel.json`）
-- [x] 环境变量配置（`VITE_API_BASE_URL`、`NODE_ENV=production`）
-- [x] 自动部署配置（Vercel 连接 GitHub，部署分支 `main`）
-
-### 3. 问题解决
-
-- 遇到的问题：Vue Router history 模式在云端刷新子路由会出现 404  
-- 解决方案：在 `vercel.json` 中增加 `rewrites`，统一回退到 `index.html`
-
-- 遇到的问题：前后端分离后前端无法请求本地 `/api` 相对路径  
-- 解决方案：在 Vercel 配置 `VITE_API_BASE_URL` 指向 Railway 后端线上地址
-
-## PR 链接
-
-- PR #X: （提交后补充）
-
-## 在线地址
-
-- 前端（Vercel）：（部署后补充）
-- 后端（Railway）：（由后端同学补充）
-
-## 心得体会
-
-通过本次云服务部署实践，明确了前后端分离项目在云端落地的关键点：前端静态资源部署、环境变量注入以及自动化发布流程。使用 Vercel 可快速完成前端上线，并通过 `VITE_API_BASE_URL` 与后端云服务进行解耦连接。
-# 云服务部署贡献说明
-
-姓名：曾昭祥  
-学号：2312190219  
-日期：2026-06-02
-
-## 我完成的工作
-
-### 1. 平台选择
-
 - 使用平台：`Vercel`（前端部署）
-- 说明：后端云部署由陈伟栋同学负责并已实现，本次仅完成前端与文档部分
+- 说明：后端云部署由陈伟栋同学负责并已实现
 
 ### 2. 部署配置
 
@@ -74,12 +35,12 @@
 
 ## PR 链接
 
-- PR #X: （提交后补充）
+- PR #24: https://github.com/Ccccwd/personal-financial-management-assistant/pull/24 （`feature/曾昭祥-frontend-doc` → `dev`）
+- PR #25: https://github.com/Ccccwd/personal-financial-management-assistant/pull/25 （`dev` → `main`）
 
 ## 在线地址
 
-- 前端（Vercel）：（部署后补充）
-- 后端（Railway）：（由后端同学补充）
+- 前端（Vercel）：（已部署成功，请替换为你的实际 Vercel 线上链接）
 
 ## AI 使用情况
 
