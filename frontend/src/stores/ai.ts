@@ -11,12 +11,33 @@ import type {
   AIAdviceResponse,
   AIAdviceHistoryPayload,
   AIAdviceHistoryItem,
+  AIAdviceDetail,
   AIUsage,
   ReclassifyResponse
 } from '@/types/ai'
 
+/** 将历史详情接口的扁平结构规范为页面使用的 advice 结构 */
+function normalizeAdviceDetail(detail: AIAdviceDetail): AIAdviceResponse {
+  const breakdown = detail.next_month_budget?.breakdown ?? []
+  const total = detail.next_month_budget?.total ?? breakdown.reduce(
+    (sum, item) => sum + Number(item.suggested_amount || 0),
+    0
+  )
+  return {
+    generated_at: detail.created_at,
+    from_cache: true,
+    analysis_period: detail.analysis_period,
+    advice: {
+      highlights: detail.highlights ?? [],
+      warnings: detail.warnings ?? [],
+      suggestions: detail.suggestions ?? [],
+      next_month_budget: { total, breakdown },
+      full_report: detail.full_report ?? '',
+    },
+  }
+}
+
 export const useAIStore = defineStore('ai', () => {
-  // ─── 当前建议 ────────────────────────────────
   const currentAdvice = ref<AIAdviceResponse | null>(null)
   const adviceLoading = ref(false)
 
@@ -32,7 +53,6 @@ export const useAIStore = defineStore('ai', () => {
     }
   }
 
-  // ─── 历史记录 ────────────────────────────────
   const historyRecords = ref<AIAdviceHistoryItem[]>([])
   const historyTotal = ref(0)
   const historyLoading = ref(false)
@@ -42,7 +62,7 @@ export const useAIStore = defineStore('ai', () => {
     try {
       const res = await getAIAdviceHistory({ page, page_size: pageSize })
       const payload = res as unknown as AIAdviceHistoryPayload
-      historyRecords.value = payload?.records ?? []
+      historyRecords.value = payload?.items ?? []
       historyTotal.value = payload?.total ?? 0
     } catch {
       historyRecords.value = []
@@ -52,7 +72,6 @@ export const useAIStore = defineStore('ai', () => {
     }
   }
 
-  // ─── 历史详情 ────────────────────────────────
   const historyDetail = ref<AIAdviceResponse | null>(null)
   const historyDetailLoading = ref(false)
 
@@ -60,7 +79,7 @@ export const useAIStore = defineStore('ai', () => {
     historyDetailLoading.value = true
     try {
       const res = await getAIAdviceDetail(recordId)
-      historyDetail.value = res as unknown as AIAdviceResponse
+      historyDetail.value = normalizeAdviceDetail(res as unknown as AIAdviceDetail)
     } catch {
       historyDetail.value = null
     } finally {
@@ -68,7 +87,6 @@ export const useAIStore = defineStore('ai', () => {
     }
   }
 
-  // ─── 用量统计 ────────────────────────────────
   const usage = ref<AIUsage | null>(null)
   const usageLoading = ref(false)
 
@@ -84,7 +102,6 @@ export const useAIStore = defineStore('ai', () => {
     }
   }
 
-  // ─── 重新分类 ────────────────────────────────
   const reclassifyLoading = ref(false)
 
   const reclassify = async (transactionId: number, dryRun: boolean = false) => {

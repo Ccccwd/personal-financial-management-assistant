@@ -292,16 +292,20 @@ const handleReclassify = async () => {
     reclassifying.value = true
     // 先预览
     const preview = await aiStore.reclassify(txnId, true)
-    if (!preview) return
+    if (!preview?.category_id) return
+    const currentName = txn.value?.category_name || '未分类'
+    if (preview.category_name === currentName) {
+      ElMessage.info('AI 推荐分类与当前一致，无需修改')
+      return
+    }
     await ElMessageBox.confirm(
-      `建议将分类从「${preview.old_category?.name ?? '未分类'}」改为「${preview.new_category?.name}」（置信度: ${(preview.confidence * 100).toFixed(0)}%），是否应用？`,
+      `建议将分类从「${currentName}」改为「${preview.category_name}」（置信度: ${(preview.confidence * 100).toFixed(0)}%），是否应用？`,
       '分类建议',
       { confirmButtonText: '应用', cancelButtonText: '取消' }
     )
-    // 正式应用
     const applied = await aiStore.reclassify(txnId, false)
     if (applied) {
-      ElMessage.success(`分类已更新为「${applied.new_category?.name}」`)
+      ElMessage.success(`分类已更新为「${applied.category_name}」`)
       await loadTxn()
     }
   } catch {

@@ -42,6 +42,15 @@ const tagTypeMap: Record<string, string> = {
   border-radius: 12px;
   border: 1px solid #e5e7eb;
   overflow: hidden;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.advice-card :deep(.el-card__body) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .advice-card--highlight { border-left: 4px solid #16A34A; }
@@ -77,8 +86,11 @@ const tagTypeMap: Record<string, string> = {
 }
 
 .advice-empty {
-  text-align: center;
-  padding: 20px 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
   color: #9ca3af;
   font-size: 14px;
 }
@@ -87,6 +99,7 @@ const tagTypeMap: Record<string, string> = {
   list-style: none;
   padding: 0;
   margin: 0;
+  flex: 1;
 }
 
 .advice-item {

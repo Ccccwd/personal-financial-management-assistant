@@ -2,11 +2,14 @@ import request from '@/api/request'
 import {
   AIClassifyItem,
   AIClassifyResponse,
+  AIAdviceDetail,
   AIAdviceHistoryPayload,
   AIAdviceResponse,
   AIUsage,
   ReclassifyResponse
 } from '@/types/index'
+
+const AI_ADVICE_TIMEOUT = 120000
 
 /**
  * 账单智能分类
@@ -35,7 +38,7 @@ export function getAIAdvice(params?: {
   months?: number
   force_refresh?: boolean
 }) {
-  return request.get<AIAdviceResponse>('/ai/advice', { params, timeout: 60000 })
+  return request.get<AIAdviceResponse>('/ai/advice', { params, timeout: AI_ADVICE_TIMEOUT })
 }
 
 /**
@@ -54,7 +57,7 @@ export function getAIAdviceHistory(params?: {
  * @param recordId 记录ID
  */
 export function getAIAdviceDetail(recordId: number) {
-  return request.get<AIAdviceResponse>(`/ai/advice/history/${recordId}`)
+  return request.get<AIAdviceDetail>(`/ai/advice/history/${recordId}`)
 }
 
 /**

@@ -179,6 +179,9 @@
 
       <template #footer>
         <el-button @click="classifyVisible = false">取消</el-button>
+        <el-button plain :loading="aiReclassifying" @click="handleAIClassify">
+          AI 识别
+        </el-button>
         <el-button type="primary" :loading="classifying" :disabled="!selectedCategoryId" @click="submitClassify">
           保存
         </el-button>
@@ -190,15 +193,17 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import TransactionCard from '@/components/business/TransactionCard.vue'
 import { getTransactions, updateTransaction } from '@/api/transactions'
 import { getCategories } from '@/api/categories'
+import { useAIStore } from '@/stores/ai'
 import type { Transaction, TransactionQuery, TransactionListPayload } from '@/types/transaction'
 
 const router = useRouter()
+const aiStore = useAIStore()
 
 // ── 列表状态 ────────────────────────────────────────────
 const loading = ref(false)
@@ -288,6 +293,7 @@ const classifyVisible   = ref(false)
 const classifyTarget    = ref<Transaction | null>(null)
 const selectedCategoryId = ref<number | null>(null)
 const classifying       = ref(false)
+const aiReclassifying   = ref(false)
 const loadingCategories = ref(false)
 const allCategories     = ref<any[]>([])
 
@@ -310,6 +316,34 @@ const openClassify = async (txn: Transaction) => {
   selectedCategoryId.value = txn.category_id ?? null
   classifyVisible.value = true
   await loadCategoriesOnce()
+}
+
+const handleAIClassify = async () => {
+  if (!classifyTarget.value) return
+  const txn = classifyTarget.value
+  aiReclassifying.value = true
+  try {
+    const preview = await aiStore.reclassify(txn.id, true)
+    if (!preview?.category_id) return
+    const currentName = txn.category_name || '未分类'
+    if (preview.category_name === currentName) {
+      ElMessage.info('AI 推荐分类与当前一致')
+      return
+    }
+    await ElMessageBox.confirm(
+      `建议将分类从「${currentName}」改为「${preview.category_name}」，是否应用？`,
+      'AI 智能分类',
+      { confirmButtonText: '应用', cancelButtonText: '取消' }
+    )
+    await aiStore.reclassify(txn.id, false)
+    ElMessage.success('AI 分类已应用')
+    classifyVisible.value = false
+    await fetchList()
+  } catch {
+    // 取消或错误
+  } finally {
+    aiReclassifying.value = false
+  }
 }
 
 const submitClassify = async () => {

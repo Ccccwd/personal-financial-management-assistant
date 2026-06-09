@@ -42,22 +42,22 @@
           </div>
 
           <!-- 三列建议卡片 -->
-          <el-row :gutter="16">
-            <el-col :span="8" :xs="24" :sm="24" :md="8">
+          <el-row :gutter="16" class="advice-cards-row">
+            <el-col :span="8" :xs="24" :sm="24" :md="8" class="advice-col">
               <AIAdviceCard
                 title="消费亮点"
                 type="highlight"
                 :items="aiStore.currentAdvice.advice.highlights ?? []"
               />
             </el-col>
-            <el-col :span="8" :xs="24" :sm="24" :md="8">
+            <el-col :span="8" :xs="24" :sm="24" :md="8" class="advice-col">
               <AIAdviceCard
                 title="风险提醒"
                 type="warning"
                 :items="aiStore.currentAdvice.advice.warnings ?? []"
               />
             </el-col>
-            <el-col :span="8" :xs="24" :sm="24" :md="8">
+            <el-col :span="8" :xs="24" :sm="24" :md="8" class="advice-col">
               <AIAdviceCard
                 title="优化建议"
                 type="suggestion"
@@ -99,9 +99,9 @@
           stripe
           style="width: 100%"
         >
-          <el-table-column prop="generated_at" label="生成时间" width="180">
+          <el-table-column label="生成时间" width="180">
             <template #default="{ row }">
-              {{ formatTime(row.generated_at) }}
+              {{ formatTime(row.created_at || row.generated_at) }}
             </template>
           </el-table-column>
           <el-table-column label="分析周期" width="240">
@@ -109,7 +109,11 @@
               {{ formatTime(row.analysis_period?.start) }} ~ {{ formatTime(row.analysis_period?.end) }}
             </template>
           </el-table-column>
-          <el-table-column prop="summary" label="摘要" show-overflow-tooltip />
+          <el-table-column label="摘要" show-overflow-tooltip>
+            <template #default="{ row }">
+              {{ historySummary(row) }}
+            </template>
+          </el-table-column>
           <el-table-column label="操作" width="100" align="center">
             <template #default="{ row }">
               <el-button link type="primary" @click="viewDetail(row.id)">查看</el-button>
@@ -244,6 +248,11 @@ const handleHistorySizeChange = (s: number) => {
   aiStore.fetchHistory(historyPage.value, s)
 }
 
+const historySummary = (row: { summary?: string; highlights?: string[]; warnings?: string[]; suggestions?: string[] }) => {
+  if (row.summary) return row.summary
+  return row.highlights?.[0] || row.warnings?.[0] || row.suggestions?.[0] || '查看详情'
+}
+
 const formatTime = (t: string | undefined) => {
   if (!t) return '-'
   return dayjs(t).format('YYYY-MM-DD')
@@ -294,6 +303,16 @@ onMounted(() => {
   border-radius: 8px;
   font-size: 13px;
   color: #6b7280;
+  margin-bottom: 16px;
+}
+
+.advice-cards-row {
+  align-items: stretch;
+}
+
+.advice-col {
+  display: flex;
+  margin-bottom: 16px;
 }
 
 .budget-card {
