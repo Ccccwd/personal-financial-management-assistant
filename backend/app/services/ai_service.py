@@ -3,16 +3,20 @@ AI 智能服务模块
 提供账单智能分类和理财建议生成功能
 """
 import json
+import logging
+import time
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Any
 from sqlalchemy.orm import Session
-from openai import OpenAI
+from openai import OpenAI, APIError, APITimeoutError, RateLimitError
 
 from app.config.settings import settings
 from app.models.user import User
 from app.models.category import Category
 from app.models.transaction import Transaction
 from app.models.ai_advice_record import AIAdviceRecord
+
+logger = logging.getLogger(__name__)
 
 
 class AIService:
@@ -76,6 +80,44 @@ class AIService:
                 base_url=settings.ai_base_url
             )
         return self._client
+
+    def _call_llm(self, messages: list, temperature: float = 0.7,
+                  response_format: Optional[dict] = None, max_retries: int = 2):
+        """
+        统一 LLM 调用，带重试逻辑
+
+        Args:
+            messages: 消息列表
+            temperature: 温度参数
+            response_format: 响应格式
+            max_retries: 最大重试次数
+
+        Returns:
+            OpenAI ChatCompletion 响应
+        """
+        kwargs = {
+            "model": settings.ai_model,
+            "messages": messages,
+            "temperature": temperature,
+        }
+        if response_format:
+            kwargs["response_format"] = response_format
+
+        last_exc = None
+        for attempt in range(max_retries + 1):
+            try:
+                return self.client.chat.completions.create(**kwargs)
+            except (APITimeoutError, RateLimitError) as e:
+                last_exc = e
+                if attempt < max_retries:
+                    wait = 2 ** attempt
+                    logger.warning("LLM 调用失败（第 %d 次），%d 秒后重试: %s", attempt + 1, wait, e)
+                    time.sleep(wait)
+            except APIError as e:
+                logger.error("LLM API 错误: %s", e)
+                raise
+
+        raise last_exc
 
     def _match_by_rules(self, merchant_name: str, transaction_type: str) -> Optional[str]:
         """
@@ -195,8 +237,7 @@ class AIService:
 """
 
         try:
-            response = self.client.chat.completions.create(
-                model=settings.ai_model,
+            response = self._call_llm(
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1,
                 response_format={"type": "json_object"}
@@ -210,27 +251,29 @@ class AIService:
 
             return result
 
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.warning("LLM 分类结果解析失败: %s", e)
         except Exception as e:
-            # LLM 调用失败，返回默认分类
-            print(f"LLM 分类失败: {str(e)}")
-            # 找到"其他"分类
-            other_category = db.query(Category).filter(
-                (Category.user_id == user_id) | (Category.is_system),
-                Category.name == "其他",
-                Category.type == "expense"
-            ).first()
+            logger.error("LLM 分类调用失败: %s", e)
 
-            category_id = other_category.id if other_category else None
+        # LLM 调用失败，返回默认分类
+        other_category = db.query(Category).filter(
+            (Category.user_id == user_id) | (Category.is_system),
+            Category.name == "其他",
+            Category.type == "expense"
+        ).first()
 
-            return [
-                {
-                    "index": i,
-                    "category_id": category_id,
-                    "category_name": "其他",
-                    "confidence": 0.5
-                }
-                for i in range(len(items))
-            ]
+        category_id = other_category.id if other_category else None
+
+        return [
+            {
+                "index": i,
+                "category_id": category_id,
+                "category_name": "其他",
+                "confidence": 0.5
+            }
+            for i in range(len(items))
+        ]
 
     def classify_items(
         self,
@@ -501,8 +544,7 @@ class AIService:
 """
 
         try:
-            response = self.client.chat.completions.create(
-                model=settings.ai_model,
+            response = self._call_llm(
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.7,
                 response_format={"type": "json_object"}
@@ -512,7 +554,7 @@ class AIService:
             advice_data = json.loads(content)
 
             # 计算消耗的 Token
-            tokens_used = response.usage.total_tokens if hasattr(response, "usage") else 0
+            tokens_used = response.usage.total_tokens if response.usage else 0
 
             # 保存到数据库
             record = AIAdviceRecord(
@@ -545,7 +587,7 @@ class AIService:
             }
 
         except Exception as e:
-            print(f"生成建议失败: {str(e)}")
+            logger.error("生成理财建议失败: %s", e)
             return {
                 "generated_at": datetime.now(),
                 "from_cache": False,
