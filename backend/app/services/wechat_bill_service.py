@@ -158,9 +158,10 @@ class WeChatBillService:
                     continue
 
                 wechat_txn_id = txn_data.get('transaction_id', '')
-                if wechat_txn_id:
+                if wechat_txn_id and account_id:
                     existing = db.query(Transaction).filter(
                         Transaction.user_id == user_id,
+                        Transaction.account_id == account_id,
                         Transaction.wechat_transaction_id == wechat_txn_id
                     ).first()
                     if existing:

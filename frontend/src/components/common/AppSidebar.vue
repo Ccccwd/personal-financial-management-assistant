@@ -31,6 +31,10 @@
         <el-icon><DataLine /></el-icon>
         <span>统计分析</span>
       </el-menu-item>
+      <el-menu-item index="/ai">
+        <el-icon><MagicStick /></el-icon>
+        <span>智能分析</span>
+      </el-menu-item>
       <el-menu-item index="/import">
         <el-icon><Upload /></el-icon>
         <span>数据导入</span>
@@ -52,6 +56,7 @@ import {
   CreditCard,
   DataLine,
   Calendar,
+  MagicStick,
   Upload,
   Wallet,
   User

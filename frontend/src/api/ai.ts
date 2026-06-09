@@ -35,7 +35,7 @@ export function getAIAdvice(params?: {
   months?: number
   force_refresh?: boolean
 }) {
-  return request.get<AIAdviceResponse>('/ai/advice', { params })
+  return request.get<AIAdviceResponse>('/ai/advice', { params, timeout: 60000 })
 }
 
 /**

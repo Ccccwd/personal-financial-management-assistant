@@ -8,6 +8,9 @@
       </el-button>
       <h1 class="page-title">交易详情</h1>
       <div class="header-actions">
+        <el-button size="small" type="primary" plain :loading="reclassifying" @click="handleReclassify">
+          智能分类
+        </el-button>
         <el-button size="small" @click="openEdit">编辑</el-button>
         <el-button size="small" type="danger" plain @click="handleDelete">删除</el-button>
       </div>
@@ -146,13 +149,16 @@ import {
 } from '@/api/transactions'
 import { getCategories } from '@/api/categories'
 import { getAccounts } from '@/api/accounts'
+import { useAIStore } from '@/stores/ai'
 import type { Transaction } from '@/types/transaction'
 
 const router = useRouter()
 const route  = useRoute()
+const aiStore = useAIStore()
 
 const loading = ref(false)
 const saving  = ref(false)
+const reclassifying = ref(false)
 const txn     = ref<Transaction | null>(null)
 
 const editVisible = ref(false)
@@ -272,6 +278,36 @@ const handleDelete = async () => {
     router.replace('/transactions')
   } catch {
     // 取消或接口错误，不处理
+  }
+}
+
+// ── 智能分类 ──────────────────────────────────────
+const handleReclassify = async () => {
+  try {
+    await ElMessageBox.confirm(
+      '将自动分析该交易的商户信息并推荐最合适的分类，是否继续？',
+      '智能分类',
+      { confirmButtonText: '开始分类', cancelButtonText: '取消', type: 'info' }
+    )
+    reclassifying.value = true
+    // 先预览
+    const preview = await aiStore.reclassify(txnId, true)
+    if (!preview) return
+    await ElMessageBox.confirm(
+      `建议将分类从「${preview.old_category?.name ?? '未分类'}」改为「${preview.new_category?.name}」（置信度: ${(preview.confidence * 100).toFixed(0)}%），是否应用？`,
+      '分类建议',
+      { confirmButtonText: '应用', cancelButtonText: '取消' }
+    )
+    // 正式应用
+    const applied = await aiStore.reclassify(txnId, false)
+    if (applied) {
+      ElMessage.success(`分类已更新为「${applied.new_category?.name}」`)
+      await loadTxn()
+    }
+  } catch {
+    // 用户取消或错误
+  } finally {
+    reclassifying.value = false
   }
 }
 
