@@ -102,13 +102,17 @@ def enrich_transaction(transaction: Transaction) -> dict:
     """为交易记录添加关联信息"""
     data = TransactionResponse.model_validate(transaction).model_dump()
 
-    # 添加分类名称和图标
-    if transaction.category:
-        data["category_name"] = transaction.category.name
-        data["category_icon"] = transaction.category.icon
+    # 仅展示属于当前用户的分类，避免跨用户 category_id 污染
+    category = transaction.category
+    if category and category.user_id == transaction.user_id:
+        data["category_name"] = category.name
+        data["category_icon"] = category.icon
+        data["category_color"] = category.color
     else:
+        data["category_id"] = None
         data["category_name"] = None
         data["category_icon"] = None
+        data["category_color"] = None
 
     # 添加账户名称
     if transaction.account:
@@ -323,13 +327,16 @@ async def create_transaction(
     if not account:
         return Response(code=404, message="账户不存在", data=None)
 
-    # 验证分类存在（非转账时）
+    # 验证分类存在且属于当前用户（非转账时）
     if transaction_data.type != "transfer" and transaction_data.category_id:
         category = db.query(Category).filter(
-            Category.id == transaction_data.category_id
+            Category.id == transaction_data.category_id,
+            Category.user_id == current_user.id,
         ).first()
         if not category:
             return Response(code=404, message="分类不存在", data=None)
+        if category.type != transaction_data.type:
+            return Response(code=400, message="分类类型与交易类型不匹配", data=None)
 
     # 转账类型验证
     if transaction_data.type == "transfer":
@@ -446,6 +453,25 @@ async def update_transaction(
         elif transaction.type == "expense":
             old_account.balance -= transaction.amount
         return Response(code=404, message="账户不存在", data=None)
+
+    new_type = update_data.get("type", transaction.type)
+    if "category_id" in update_data and update_data["category_id"] is not None and new_type != "transfer":
+        category = db.query(Category).filter(
+            Category.id == update_data["category_id"],
+            Category.user_id == current_user.id,
+        ).first()
+        if not category:
+            if transaction.type == "income":
+                old_account.balance += transaction.amount
+            elif transaction.type == "expense":
+                old_account.balance -= transaction.amount
+            return Response(code=404, message="分类不存在", data=None)
+        if category.type != new_type:
+            if transaction.type == "income":
+                old_account.balance += transaction.amount
+            elif transaction.type == "expense":
+                old_account.balance -= transaction.amount
+            return Response(code=400, message="分类类型与交易类型不匹配", data=None)
 
     # 3. 应用更新
     for field, value in update_data.items():

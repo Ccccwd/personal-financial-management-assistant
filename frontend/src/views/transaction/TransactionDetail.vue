@@ -92,7 +92,7 @@
         <el-form-item label="分类">
           <el-select v-model="editForm.category_id" clearable placeholder="请选择分类" style="width:100%">
             <el-option
-              v-for="c in categories"
+              v-for="c in editCategories"
               :key="c.id"
               :label="c.name"
               :value="c.id"
@@ -147,9 +147,10 @@ import {
   updateTransaction,
   deleteTransaction,
 } from '@/api/transactions'
-import { getCategories } from '@/api/categories'
 import { getAccounts } from '@/api/accounts'
 import { useAIStore } from '@/stores/ai'
+import { ensureCategoriesLoaded } from '@/utils/category'
+import type { Category } from '@/types/category'
 import type { Transaction } from '@/types/transaction'
 
 const router = useRouter()
@@ -163,8 +164,13 @@ const txn     = ref<Transaction | null>(null)
 
 const editVisible = ref(false)
 const editForm    = ref<any>(null)
-const categories  = ref<any[]>([])
+const categories  = ref<Category[]>([])
 const accounts    = ref<any[]>([])
+
+const editCategories = computed(() => {
+  if (!txn.value || txn.value.type === 'transfer') return []
+  return categories.value.filter(c => c.type === txn.value!.type)
+})
 
 const txnId = Number(route.params.id)
 
@@ -226,11 +232,11 @@ const loadTxn = async () => {
 }
 
 const loadDropdowns = async () => {
-  const [catRes, accRes] = await Promise.all([
-    getCategories() as any,
-    getAccounts()    as any,
+  const [cats, accRes] = await Promise.all([
+    ensureCategoriesLoaded(),
+    getAccounts() as any,
   ])
-  categories.value = catRes?.categories ?? []
+  categories.value = cats
   accounts.value   = accRes?.accounts ?? []
 }
 

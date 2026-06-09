@@ -56,15 +56,13 @@ async def get_categories(
     - **include_system**: 是否包含系统预设分类
     - **parent_id**: 过滤指定父分类下的子分类
     """
-    query = db.query(Category).filter(
-        (Category.user_id == current_user.id) | (Category.is_system)
-    )
+    query = db.query(Category).filter(Category.user_id == current_user.id)
 
     if type:
         query = query.filter(Category.type == type)
 
     if not include_system:
-        query = query.filter(not Category.is_system)
+        query = query.filter(Category.is_system.is_(False))
 
     if parent_id is not None:
         query = query.filter(Category.parent_id == parent_id)
@@ -93,15 +91,13 @@ async def get_category_tree(
 
     返回带有 children 字段的树形结构，便于前端展示层级分类。
     """
-    query = db.query(Category).filter(
-        (Category.user_id == current_user.id) | (Category.is_system)
-    )
+    query = db.query(Category).filter(Category.user_id == current_user.id)
 
     if type:
         query = query.filter(Category.type == type)
 
     if not include_system:
-        query = query.filter(not Category.is_system)
+        query = query.filter(Category.is_system.is_(False))
 
     all_categories = query.order_by(Category.sort_order, Category.id).all()
 
@@ -140,9 +136,7 @@ async def get_categories_with_stats(
 
     返回每个分类的交易次数和总金额统计。
     """
-    query = db.query(Category).filter(
-        (Category.user_id == current_user.id) | (Category.is_system)
-    )
+    query = db.query(Category).filter(Category.user_id == current_user.id)
 
     if type:
         query = query.filter(Category.type == type)
@@ -192,7 +186,7 @@ async def get_category(
     """
     category = db.query(Category).filter(
         Category.id == category_id,
-        (Category.user_id == current_user.id) | (Category.is_system)
+        Category.user_id == current_user.id,
     ).first()
 
     if not category:
@@ -230,7 +224,7 @@ async def create_category(
     if category_data.parent_id:
         parent = db.query(Category).filter(
             Category.id == category_data.parent_id,
-            (Category.user_id == current_user.id) | (Category.is_system)
+            Category.user_id == current_user.id,
         ).first()
         if not parent:
             return Response(code=400, message="父分类不存在", data=None)

@@ -60,7 +60,8 @@ service.interceptors.response.use(
         window.location.href = '/login'
       }
     } else {
-      ElMessage.error(error.message || 'Request failed')
+      const resData = error.response?.data as { message?: string } | undefined
+      ElMessage.error(resData?.message || error.message || '请求失败')
     }
     
     return Promise.reject(error)

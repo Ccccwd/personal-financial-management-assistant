@@ -27,7 +27,8 @@ class AIService:
         "餐饮": [
             "餐厅", "外卖", "咖啡", "奶茶", "火锅", "烧烤",
             "麦当劳", "肯德基", "瑞幸", "星巴克", "美团", "饿了么",
-            "喜茶", "奈雪", "茶百道", "古茗", "蜜雪冰城"
+            "喜茶", "奈雪", "茶百道", "古茗", "蜜雪冰城",
+            "肉包", "包子", "早阳", "早餐", "食堂", "饭店", "小吃",
         ],
         "交通": [
             "滴滴", "出租", "地铁", "公交", "加油", "停车",
@@ -48,7 +49,7 @@ class AIService:
         ],
         "教育": [
             "培训", "课程", "书籍", "学费", "教育", "学习",
-            "辅导", "考试", "学校"
+            "辅导", "考试", "学校", "大学", "一卡通", "校园",
         ],
         "住房": [
             "房租", "物业", "水电", "燃气", "采暖", "宽带",
@@ -142,6 +143,56 @@ class AIService:
 
         return None
 
+    def _get_user_categories(
+        self,
+        db: Session,
+        user_id: int,
+        transaction_type: Optional[str] = None,
+    ) -> List[Category]:
+        """获取当前用户的分类列表（不包含其他用户数据）。"""
+        query = db.query(Category).filter(Category.user_id == user_id)
+        if transaction_type:
+            query = query.filter(Category.type == transaction_type)
+        return query.order_by(Category.sort_order, Category.id).all()
+
+    def _resolve_category_id(
+        self,
+        db: Session,
+        user_id: int,
+        category_id: Optional[int],
+        category_name: Optional[str],
+        transaction_type: str,
+    ) -> Optional[int]:
+        """校验并解析分类 ID，确保属于当前用户且类型匹配。"""
+        if category_id:
+            category = db.query(Category).filter(
+                Category.id == category_id,
+                Category.user_id == user_id,
+                Category.type == transaction_type,
+            ).first()
+            if category:
+                return category.id
+        if category_name:
+            category = self._find_category_by_name(
+                db, user_id, category_name, transaction_type
+            )
+            if category:
+                return category.id
+        return None
+
+    def _get_fallback_category_id(
+        self,
+        db: Session,
+        user_id: int,
+        transaction_type: str,
+    ) -> Optional[int]:
+        """获取当前用户在指定类型下的默认兜底分类 ID。"""
+        fallback_name = "其他收入" if transaction_type == "income" else "其他"
+        category = self._find_category_by_name(
+            db, user_id, fallback_name, transaction_type
+        )
+        return category.id if category else None
+
     def _find_category_by_name(
         self,
         db: Session,
@@ -184,14 +235,14 @@ class AIService:
         Returns:
             分类结果列表
         """
-        # 获取用户的分类列表
-        categories = db.query(Category).filter(
-            (Category.user_id == user_id) | (Category.is_system),
-            Category.type == "expense"
-        ).all()
+        transaction_types = {
+            item.get("transaction_type", "expense") for item in items
+        }
+        categories = self._get_user_categories(db, user_id)
+        categories = [c for c in categories if c.type in transaction_types]
 
         category_list = [
-            {"id": c.id, "name": c.name, "is_system": c.is_system}
+            {"id": c.id, "name": c.name, "type": c.type, "is_system": c.is_system}
             for c in categories
         ]
 
@@ -249,30 +300,47 @@ class AIService:
             if isinstance(result, dict) and "results" in result:
                 result = result["results"]
 
-            return result
+            validated: List[Dict[str, Any]] = []
+            for r in result:
+                idx = r.get("index", 0)
+                item = items[idx] if 0 <= idx < len(items) else items[0]
+                txn_type = item.get("transaction_type", "expense")
+                resolved_id = self._resolve_category_id(
+                    db,
+                    user_id,
+                    r.get("category_id"),
+                    r.get("category_name"),
+                    txn_type,
+                )
+                category_name = r.get("category_name", "其他")
+                if resolved_id:
+                    category = db.query(Category).filter(Category.id == resolved_id).first()
+                    if category:
+                        category_name = category.name
+                validated.append({
+                    "index": idx,
+                    "category_id": resolved_id,
+                    "category_name": category_name,
+                    "confidence": r.get("confidence", 0.7),
+                })
+            return validated
 
         except (json.JSONDecodeError, KeyError) as e:
             logger.warning("LLM 分类结果解析失败: %s", e)
         except Exception as e:
             logger.error("LLM 分类调用失败: %s", e)
 
-        # LLM 调用失败，返回默认分类
-        other_category = db.query(Category).filter(
-            (Category.user_id == user_id) | (Category.is_system),
-            Category.name == "其他",
-            Category.type == "expense"
-        ).first()
-
-        category_id = other_category.id if other_category else None
-
+        # LLM 调用失败，按交易类型返回当前用户的默认分类
         return [
             {
                 "index": i,
-                "category_id": category_id,
-                "category_name": "其他",
-                "confidence": 0.5
+                "category_id": self._get_fallback_category_id(
+                    db, user_id, item.get("transaction_type", "expense")
+                ),
+                "category_name": "其他收入" if item.get("transaction_type") == "income" else "其他",
+                "confidence": 0.5,
             }
-            for i in range(len(items))
+            for i, item in enumerate(items)
         ]
 
     def classify_items(
@@ -337,16 +405,28 @@ class AIService:
             for r in llm_response:
                 llm_result_map[r.get("index", 0)] = r
 
-            # 将 LLM 结果插入正确位置
+            # 将 LLM 结果插入正确位置（校验分类归属当前用户）
             for i, original_idx in enumerate(llm_indices):
                 llm_result = llm_result_map.get(i, {})
                 item = llm_items[i][1]
+                txn_type = item.get("transaction_type", "expense")
+                resolved_id = self._resolve_category_id(
+                    db,
+                    user_id,
+                    llm_result.get("category_id"),
+                    llm_result.get("category_name"),
+                    txn_type,
+                )
+                category_name = llm_result.get("category_name", "未知")
+                if resolved_id:
+                    category = db.query(Category).filter(Category.id == resolved_id).first()
+                    category_name = category.name if category else category_name
 
                 results.append({
                     "index": original_idx,
                     "merchant_name": item.get("merchant_name", ""),
-                    "category_id": llm_result.get("category_id"),
-                    "category_name": llm_result.get("category_name", "未知"),
+                    "category_id": resolved_id,
+                    "category_name": category_name,
                     "confidence": llm_result.get("confidence", 0.7),
                     "matched_by": "llm"
                 })
@@ -412,12 +492,35 @@ class AIService:
         result = self.classify_by_llm(db, user_id, [item])
 
         if result and len(result) > 0:
+            r = result[0]
+            resolved_id = self._resolve_category_id(
+                db,
+                user_id,
+                r.get("category_id"),
+                r.get("category_name"),
+                item["transaction_type"],
+            )
+            category_name = r.get("category_name", "未知")
+            if resolved_id:
+                category = db.query(Category).filter(Category.id == resolved_id).first()
+                category_name = category.name if category else category_name
             return {
                 "transaction_id": transaction_id,
-                "category_id": result[0].get("category_id"),
-                "category_name": result[0].get("category_name", "未知"),
-                "confidence": result[0].get("confidence", 0.7),
+                "category_id": resolved_id,
+                "category_name": category_name,
+                "confidence": r.get("confidence", 0.7),
                 "matched_by": "llm"
+            }
+
+        fallback_id = self._get_fallback_category_id(db, user_id, item["transaction_type"])
+        if fallback_id:
+            category = db.query(Category).filter(Category.id == fallback_id).first()
+            return {
+                "transaction_id": transaction_id,
+                "category_id": fallback_id,
+                "category_name": category.name if category else "其他",
+                "confidence": 0.5,
+                "matched_by": "rule",
             }
 
         return None

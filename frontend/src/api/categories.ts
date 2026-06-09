@@ -7,7 +7,7 @@ import {
   CategoryStat,
 } from '@/types/index'
 
-/** 按 (name, type) 去重，保留首次出现的条目（避免后端跨用户 is_system 重复返回） */
+/** 按 (type, name) 去重，保留首次出现的条目 */
 function deduplicateCategories(categories: Category[]): Category[] {
   const seen = new Set<string>()
   return categories.filter(c => {
@@ -16,6 +16,13 @@ function deduplicateCategories(categories: Category[]): Category[] {
     seen.add(key)
     return true
   })
+}
+
+/**
+ * 初始化当前用户的系统预设分类
+ */
+export function initSystemCategories() {
+  return request.post<{ created_count: number }>('/categories/init-system')
 }
 
 /**

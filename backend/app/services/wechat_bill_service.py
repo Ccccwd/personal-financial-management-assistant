@@ -242,41 +242,47 @@ class WeChatBillService:
             matched_category_id = None
             matched_by = None
 
-            # 第一优先：LLM 分类
-            try:
-                items = [{
-                    "merchant_name": merchant_name,
-                    "product_name": description,
-                    "amount": float(transaction.amount),
-                    "transaction_type": transaction.type,
-                }]
-                results = ai_service.classify_by_llm(db, user_id, items)
-                if results and len(results) > 0:
-                    matched_category_id = results[0].get("category_id")
-                    matched_by = "llm"
-            except Exception:
-                pass
+            # 第一优先：规则匹配（快速且节省 Token）
+            search_text = f"{merchant_name} {description}".strip()
+            matched_category_name = ai_service._match_by_rules(search_text, transaction.type)
+            if matched_category_name:
+                category = ai_service._find_category_by_name(
+                    db, user_id, matched_category_name, transaction.type
+                )
+                if category:
+                    matched_category_id = category.id
+                    matched_by = "rule"
 
-            # 第二优先：规则匹配兜底
+            # 第二优先：LLM 分类
             if matched_category_id is None:
-                matched_category_name = ai_service._match_by_rules(merchant_name, transaction.type)
-                if matched_category_name:
-                    category = ai_service._find_category_by_name(
-                        db, user_id, matched_category_name, transaction.type
-                    )
-                    if category:
-                        matched_category_id = category.id
-                        matched_by = "rule"
+                try:
+                    items = [{
+                        "merchant_name": merchant_name,
+                        "product_name": description,
+                        "amount": float(transaction.amount),
+                        "transaction_type": transaction.type,
+                    }]
+                    results = ai_service.classify_by_llm(db, user_id, items)
+                    if results and len(results) > 0:
+                        r = results[0]
+                        matched_category_id = ai_service._resolve_category_id(
+                            db,
+                            user_id,
+                            r.get("category_id"),
+                            r.get("category_name"),
+                            transaction.type,
+                        )
+                        if matched_category_id:
+                            matched_by = "llm"
+                except Exception:
+                    pass
 
-            # 第三优先：分到"其他"
+            # 第三优先：分到当前用户的默认分类
             if matched_category_id is None:
-                fallback = db.query(Category).filter(
-                    (Category.user_id == user_id) | (Category.is_system),
-                    Category.name == "其他",
-                    Category.type == transaction.type,
-                ).first()
-                if fallback:
-                    matched_category_id = fallback.id
+                matched_category_id = ai_service._get_fallback_category_id(
+                    db, user_id, transaction.type
+                )
+                if matched_category_id:
                     matched_by = "fallback"
 
             if matched_category_id is not None:
