@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="transaction-list-page">
     <div class="page-header">
       <h1 class="page-title">交易记录</h1>

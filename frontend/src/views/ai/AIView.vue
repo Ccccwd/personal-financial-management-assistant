@@ -41,30 +41,24 @@
             <el-tag v-else size="small" type="success">新生成</el-tag>
           </div>
 
-          <!-- 三列建议卡片 -->
-          <el-row :gutter="16" class="advice-cards-row">
-            <el-col :span="8" :xs="24" :sm="24" :md="8" class="advice-col">
-              <AIAdviceCard
-                title="消费亮点"
-                type="highlight"
-                :items="aiStore.currentAdvice.advice.highlights ?? []"
-              />
-            </el-col>
-            <el-col :span="8" :xs="24" :sm="24" :md="8" class="advice-col">
-              <AIAdviceCard
-                title="风险提醒"
-                type="warning"
-                :items="aiStore.currentAdvice.advice.warnings ?? []"
-              />
-            </el-col>
-            <el-col :span="8" :xs="24" :sm="24" :md="8" class="advice-col">
-              <AIAdviceCard
-                title="优化建议"
-                type="suggestion"
-                :items="aiStore.currentAdvice.advice.suggestions ?? []"
-              />
-            </el-col>
-          </el-row>
+          <!-- 三列建议卡片：等宽等高，顺序为亮点 → 优化建议 → 风险提醒 -->
+          <div class="advice-cards-row">
+            <AIAdviceCard
+              title="消费亮点"
+              type="highlight"
+              :items="aiStore.currentAdvice.advice.highlights ?? []"
+            />
+            <AIAdviceCard
+              title="优化建议"
+              type="suggestion"
+              :items="aiStore.currentAdvice.advice.suggestions ?? []"
+            />
+            <AIAdviceCard
+              title="风险提醒"
+              type="warning"
+              :items="aiStore.currentAdvice.advice.warnings ?? []"
+            />
+          </div>
 
           <!-- 预算建议 -->
           <el-card shadow="hover" class="budget-card">
@@ -142,10 +136,10 @@
               <AIAdviceCard title="消费亮点" type="highlight" :items="aiStore.historyDetail.advice.highlights ?? []" />
             </div>
             <div class="drawer-section">
-              <AIAdviceCard title="风险提醒" type="warning" :items="aiStore.historyDetail.advice.warnings ?? []" />
+              <AIAdviceCard title="优化建议" type="suggestion" :items="aiStore.historyDetail.advice.suggestions ?? []" />
             </div>
             <div class="drawer-section">
-              <AIAdviceCard title="优化建议" type="suggestion" :items="aiStore.historyDetail.advice.suggestions ?? []" />
+              <AIAdviceCard title="风险提醒" type="warning" :items="aiStore.historyDetail.advice.warnings ?? []" />
             </div>
             <el-divider />
             <h4 style="margin: 0 0 12px; color: #111827;">完整报告</h4>
@@ -307,12 +301,17 @@ onMounted(() => {
 }
 
 .advice-cards-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
   align-items: stretch;
+  margin-bottom: 16px;
 }
 
-.advice-col {
-  display: flex;
-  margin-bottom: 16px;
+@media (max-width: 992px) {
+  .advice-cards-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .budget-card {
