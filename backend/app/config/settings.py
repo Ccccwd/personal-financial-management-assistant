@@ -20,10 +20,10 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
 
-    # AI 大模型配置
+    # AI 大模型配置（DeepSeek）
     ai_api_key: str = ""
-    ai_base_url: str = "https://open.bigmodel.cn/api/paas/v4"
-    ai_model: str = "glm-5.1"
+    ai_base_url: str = "https://api.deepseek.com"
+    ai_model: str = "deepseek-chat"
 
     # 应用配置
     app_env: str = "development"

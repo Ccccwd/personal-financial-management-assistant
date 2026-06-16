@@ -8,6 +8,9 @@
       </el-button>
       <h1 class="page-title">交易详情</h1>
       <div class="header-actions">
+        <el-button size="small" type="primary" plain :loading="reclassifying" @click="handleReclassify">
+          智能分类
+        </el-button>
         <el-button size="small" @click="openEdit">编辑</el-button>
         <el-button size="small" type="danger" plain @click="handleDelete">删除</el-button>
       </div>
@@ -89,7 +92,7 @@
         <el-form-item label="分类">
           <el-select v-model="editForm.category_id" clearable placeholder="请选择分类" style="width:100%">
             <el-option
-              v-for="c in categories"
+              v-for="c in editCategories"
               :key="c.id"
               :label="c.name"
               :value="c.id"
@@ -144,21 +147,30 @@ import {
   updateTransaction,
   deleteTransaction,
 } from '@/api/transactions'
-import { getCategories } from '@/api/categories'
 import { getAccounts } from '@/api/accounts'
+import { useAIStore } from '@/stores/ai'
+import { ensureCategoriesLoaded } from '@/utils/category'
+import type { Category } from '@/types/category'
 import type { Transaction } from '@/types/transaction'
 
 const router = useRouter()
 const route  = useRoute()
+const aiStore = useAIStore()
 
 const loading = ref(false)
 const saving  = ref(false)
+const reclassifying = ref(false)
 const txn     = ref<Transaction | null>(null)
 
 const editVisible = ref(false)
 const editForm    = ref<any>(null)
-const categories  = ref<any[]>([])
+const categories  = ref<Category[]>([])
 const accounts    = ref<any[]>([])
+
+const editCategories = computed(() => {
+  if (!txn.value || txn.value.type === 'transfer') return []
+  return categories.value.filter(c => c.type === txn.value!.type)
+})
 
 const txnId = Number(route.params.id)
 
@@ -220,11 +232,11 @@ const loadTxn = async () => {
 }
 
 const loadDropdowns = async () => {
-  const [catRes, accRes] = await Promise.all([
-    getCategories() as any,
-    getAccounts()    as any,
+  const [cats, accRes] = await Promise.all([
+    ensureCategoriesLoaded(),
+    getAccounts() as any,
   ])
-  categories.value = catRes?.categories ?? []
+  categories.value = cats
   accounts.value   = accRes?.accounts ?? []
 }
 
@@ -272,6 +284,40 @@ const handleDelete = async () => {
     router.replace('/transactions')
   } catch {
     // 取消或接口错误，不处理
+  }
+}
+
+// ── 智能分类 ──────────────────────────────────────
+const handleReclassify = async () => {
+  try {
+    await ElMessageBox.confirm(
+      '将自动分析该交易的商户信息并推荐最合适的分类，是否继续？',
+      '智能分类',
+      { confirmButtonText: '开始分类', cancelButtonText: '取消', type: 'info' }
+    )
+    reclassifying.value = true
+    // 先预览
+    const preview = await aiStore.reclassify(txnId, true)
+    if (!preview?.category_id) return
+    const currentName = txn.value?.category_name || '未分类'
+    if (preview.category_name === currentName) {
+      ElMessage.info('AI 推荐分类与当前一致，无需修改')
+      return
+    }
+    await ElMessageBox.confirm(
+      `建议将分类从「${currentName}」改为「${preview.category_name}」（置信度: ${(preview.confidence * 100).toFixed(0)}%），是否应用？`,
+      '分类建议',
+      { confirmButtonText: '应用', cancelButtonText: '取消' }
+    )
+    const applied = await aiStore.reclassify(txnId, false)
+    if (applied) {
+      ElMessage.success(`分类已更新为「${applied.category_name}」`)
+      await loadTxn()
+    }
+  } catch {
+    // 用户取消或错误
+  } finally {
+    reclassifying.value = false
   }
 }
 

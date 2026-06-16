@@ -58,6 +58,12 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: '统计分析' }
       },
       {
+        path: 'ai',
+        name: 'AIAnalysis',
+        component: () => import('@/views/ai/AIView.vue'),
+        meta: { title: 'AI 智能分析' }
+      },
+      {
         path: 'import',
         name: 'Import',
         component: () => import('@/views/import/WechatImport.vue'),

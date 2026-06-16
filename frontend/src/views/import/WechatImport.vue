@@ -251,18 +251,18 @@
             </div>
           </template>
           <template #extra>
-            <!-- AI 批量分类区域 -->
+            <!-- 智能分类区域 -->
             <div class="ai-classify-block">
               <template v-if="!aiClassifyState.done">
                 <el-button
                   type="success"
                   :loading="aiClassifyState.loading"
-                  @click="runAIBatchClassify"
+                  @click="runBatchClassify"
                 >
                   <el-icon v-if="!aiClassifyState.loading"><MagicStick /></el-icon>
-                  {{ aiClassifyState.loading ? `AI 识别中 (${aiClassifyState.current}/${aiClassifyState.total})` : 'AI 智能分类' }}
+                  {{ aiClassifyState.loading ? `智能识别中 (${aiClassifyState.current}/${aiClassifyState.total})` : '智能分类' }}
                 </el-button>
-                <div class="ai-classify-hint">由 AI 自动识别未分类账单的交易类别</div>
+                <div class="ai-classify-hint">自动识别未分类账单的交易类别</div>
               </template>
               <el-alert
                 v-else
@@ -271,7 +271,7 @@
                 show-icon
                 style="margin-bottom:8px"
               >
-                AI 已完成识别：{{ aiClassifyState.successCount }}/{{ aiClassifyState.total }} 条成功分类
+                已完成识别：{{ aiClassifyState.successCount }}/{{ aiClassifyState.total }} 条成功分类
               </el-alert>
             </div>
             <div class="result-actions">
@@ -351,7 +351,7 @@ import { previewBill, importBill, getImportLogs } from '@/api/wechat'
 import { getAccounts } from '@/api/accounts'
 import { getCategories } from '@/api/categories'
 import { getTransactions } from '@/api/transactions'
-import { reclassifyTransaction } from '@/api/ai'
+import { aiClassify } from '@/api/ai'
 
 import type { ImportPreviewResponse, ImportResult, ImportLog } from '@/types/wechat'
 import type { AccountListPayload } from '@/types/account'
@@ -511,7 +511,7 @@ const resetImport = () => {
   aiClassifyState.successCount = 0
 }
 
-const runAIBatchClassify = async () => {
+const runBatchClassify = async () => {
   if (!previewData.value?.date_range) return
   aiClassifyState.loading = true
   aiClassifyState.done    = false
@@ -532,27 +532,38 @@ const runAIBatchClassify = async () => {
     aiClassifyState.total = uncategorized.length
 
     if (uncategorized.length === 0) {
-      ElMessage.info('该批账单已全部完成分类，无需 AI 识别')
+      ElMessage.info('该批账单已全部完成分类，无需识别')
       aiClassifyState.done = true
       return
     }
 
-    for (const txn of uncategorized) {
+    // 使用批量分类接口（每批最多 20 条）
+    const BATCH_SIZE = 20
+    for (let i = 0; i < uncategorized.length; i += BATCH_SIZE) {
+      const batch = uncategorized.slice(i, i + BATCH_SIZE)
+      const items = batch.map((t: any) => ({
+        merchant_name: t.merchant_name || '',
+        product_name: t.remark || '',
+        amount: Number(t.amount),
+        transaction_type: t.type || 'expense',
+      }))
+
       try {
-        const res = await reclassifyTransaction(txn.id, false) as any
-        if (res?.category_id || res?.data?.category_id) {
-          aiClassifyState.successCount++
-        }
+        const res = await aiClassify(items) as any
+        const results = res?.results ?? res?.data?.results ?? []
+        aiClassifyState.successCount += results.filter(
+          (r: any) => r.category_id && r.confidence >= 0.5
+        ).length
       } catch {
-        // 单条失败不中断
+        // 单批失败不中断
       }
-      aiClassifyState.current++
+      aiClassifyState.current = Math.min(i + BATCH_SIZE, uncategorized.length)
     }
 
     aiClassifyState.done = true
-    ElMessage.success(`AI 分类完成：${aiClassifyState.successCount}/${aiClassifyState.total} 条成功识别`)
+    ElMessage.success(`智能分类完成：${aiClassifyState.successCount}/${aiClassifyState.total} 条成功识别`)
   } catch {
-    ElMessage.error('AI 批量分类失败，请稍后重试')
+    ElMessage.error('智能分类失败，请稍后重试')
   } finally {
     aiClassifyState.loading = false
   }

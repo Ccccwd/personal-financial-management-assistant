@@ -52,6 +52,7 @@ class TransactionResponse(BaseModel):
     category_id: Optional[int] = None
     category_name: Optional[str] = None
     category_icon: Optional[str] = None
+    category_color: Optional[str] = None
     account_id: int
     account_name: Optional[str] = None
     to_account_id: Optional[int] = None

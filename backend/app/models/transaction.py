@@ -10,7 +10,7 @@ class Transaction(Base, TimestampMixin):
     """交易记录表"""
     __tablename__ = "transactions"
     __table_args__ = (
-        UniqueConstraint("user_id", "wechat_transaction_id", name="uq_user_wechat_txn"),
+        UniqueConstraint("user_id", "account_id", "wechat_transaction_id", name="uq_user_account_wechat_txn"),
     )
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True, comment="主键")

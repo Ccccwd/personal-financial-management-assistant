@@ -8,6 +8,7 @@ export interface Transaction extends BaseEntity {
   category_id?: number | null
   category_name?: string
   category_icon?: string
+  category_color?: string
   account_id: number
   account_name: string
   to_account_id?: number
