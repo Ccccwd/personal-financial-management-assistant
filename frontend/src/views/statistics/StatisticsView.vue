@@ -21,38 +21,12 @@
         <el-card shadow="hover" class="stat-card">
           <div class="stat-title">该月总收入</div>
           <div class="stat-value income-color">¥ {{ formatNumber(overviewData?.monthly_summary?.income || 0) }}</div>
-          <div class="stat-compare" v-if="overviewData?.monthly_summary">
-            <template v-if="isFiniteGrowth(overviewData.monthly_summary.income_growth)">
-              环比上月
-              <span
-                :class="
-                  Number(overviewData.monthly_summary.income_growth) > 0 ? 'growth-good' : 'growth-bad'
-                "
-              >
-                {{ formatGrowth(Number(overviewData.monthly_summary.income_growth)) }}%
-              </span>
-            </template>
-            <span v-else class="growth-neutral">环比上月暂无数据</span>
-          </div>
         </el-card>
       </el-col>
       <el-col :span="8">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-title">该月总支出</div>
           <div class="stat-value expense-color">¥ {{ formatNumber(overviewData?.monthly_summary?.expense || 0) }}</div>
-          <div class="stat-compare" v-if="overviewData?.monthly_summary">
-            <template v-if="isFiniteGrowth(overviewData.monthly_summary.expense_growth)">
-              环比上月
-              <span
-                :class="
-                  Number(overviewData.monthly_summary.expense_growth) < 0 ? 'growth-good' : 'growth-bad'
-                "
-              >
-                {{ formatGrowth(Number(overviewData.monthly_summary.expense_growth)) }}%
-              </span>
-            </template>
-            <span v-else class="growth-neutral">环比上月暂无数据</span>
-          </div>
         </el-card>
       </el-col>
       <el-col :span="8">
@@ -159,18 +133,6 @@ const pieChart = shallowRef<echarts.ECharts | null>(null)
 // 工具方法
 const formatNumber = (num: number) => {
   return (num || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-}
-
-/** 后端环比可能为 null，渲染前必须可辨识 */
-const isFiniteGrowth = (n: unknown): n is number => {
-  if (n === null || n === undefined) return false
-  const x = Number(n)
-  return Number.isFinite(x)
-}
-
-const formatGrowth = (num: number) => {
-  const value = Number(num.toFixed(1))
-  return value > 0 ? `+${value.toFixed(1)}` : value.toFixed(1)
 }
 
 // 渲染趋势图
@@ -394,6 +356,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  overflow: hidden;
 }
 
 /* 覆盖 Element Plus 内部 body，保持内容居中 */
@@ -415,31 +378,13 @@ onUnmounted(() => {
 .stat-value {
   font-size: 32px;
   font-weight: 700;
-  margin-bottom: 12px;
+  margin-bottom: 0;
   letter-spacing: -0.5px;
 }
 
 .income-color { color: #16A34A; }
 .expense-color { color: #EF4444; }
 .balance-color { color: #111827; }
-
-.stat-compare {
-  font-size: 13px;
-  color: #9ca3af;
-}
-
-.growth-good {
-  color: #16A34A;
-  font-weight: 600;
-}
-.growth-bad {
-  color: #EF4444;
-  font-weight: 600;
-}
-
-.growth-neutral {
-  color: #9ca3af;
-}
 
 .chart-card {
   border-radius: 12px;
