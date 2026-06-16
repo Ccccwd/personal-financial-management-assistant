@@ -19,6 +19,67 @@ from app.models.ai_advice_record import AIAdviceRecord
 logger = logging.getLogger(__name__)
 
 
+def _coerce_amount(value: Any) -> Optional[float]:
+    """将金额字段转换为浮点数"""
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def normalize_budget_suggestion(raw: Any) -> Optional[Dict[str, Any]]:
+    """
+    将 LLM 返回的预算建议统一为 API 约定格式。
+
+    兼容中文键（总预算 / 各分类预算）与英文键（total / breakdown）。
+    """
+    if not raw or not isinstance(raw, dict):
+        return None
+
+    total = _coerce_amount(raw.get("total"))
+    if total is None:
+        total = _coerce_amount(raw.get("总预算"))
+
+    breakdown: List[Dict[str, Any]] = []
+    raw_breakdown = raw.get("breakdown")
+    if isinstance(raw_breakdown, list):
+        for item in raw_breakdown:
+            if not isinstance(item, dict):
+                continue
+            category = item.get("category") or item.get("分类") or item.get("name")
+            amount = _coerce_amount(
+                item.get("suggested_amount") or item.get("amount") or item.get("预算")
+            )
+            if category and amount is not None:
+                breakdown.append({
+                    "category": str(category),
+                    "suggested_amount": round(amount, 2),
+                })
+
+    if not breakdown:
+        category_map = raw.get("各分类预算") or raw.get("categories")
+        if isinstance(category_map, dict):
+            for category, amount in category_map.items():
+                val = _coerce_amount(amount)
+                if val is not None:
+                    breakdown.append({
+                        "category": str(category),
+                        "suggested_amount": round(val, 2),
+                    })
+
+    if not breakdown and total is None:
+        return None
+
+    if total is None and breakdown:
+        total = round(sum(item["suggested_amount"] for item in breakdown), 2)
+    else:
+        total = round(total or 0, 2)
+
+    return {"total": total, "breakdown": breakdown}
+
+
 class AIService:
     """AI 智能服务类"""
 
@@ -566,7 +627,7 @@ class AIService:
                     "highlights": cached.highlights,
                     "warnings": cached.warnings,
                     "suggestions": cached.suggestions,
-                    "next_month_budget": cached.budget_suggestion,
+                    "next_month_budget": normalize_budget_suggestion(cached.budget_suggestion),
                     "full_report": cached.full_report
                 }
             }
@@ -631,8 +692,10 @@ class AIService:
   "warnings": ["预警信息1", "预警信息2"],
   "suggestions": ["建议1", "建议2", "建议3"],
   "next_month_budget": {{
-    "总预算": 金额,
-    "各分类预算": {{"分类名": 金额}}
+    "total": 金额数字,
+    "breakdown": [
+      {{"category": "分类名", "suggested_amount": 金额数字}}
+    ]
   }},
   "full_report": "完整的理财建议报告文本"
 }}
@@ -655,6 +718,9 @@ class AIService:
 
             content = response.choices[0].message.content
             advice_data = json.loads(content)
+            normalized_budget = normalize_budget_suggestion(
+                advice_data.get("next_month_budget")
+            )
 
             # 计算消耗的 Token
             tokens_used = response.usage.total_tokens if response.usage else 0
@@ -668,7 +734,7 @@ class AIService:
                 highlights=advice_data.get("highlights", []),
                 warnings=advice_data.get("warnings", []),
                 suggestions=advice_data.get("suggestions", []),
-                budget_suggestion=advice_data.get("next_month_budget"),
+                budget_suggestion=normalized_budget,
                 full_report=advice_data.get("full_report", ""),
                 tokens_used=tokens_used,
                 from_cache=False
@@ -684,7 +750,7 @@ class AIService:
                     "highlights": record.highlights,
                     "warnings": record.warnings,
                     "suggestions": record.suggestions,
-                    "next_month_budget": record.budget_suggestion,
+                    "next_month_budget": normalized_budget,
                     "full_report": record.full_report
                 }
             }

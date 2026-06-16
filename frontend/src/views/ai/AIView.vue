@@ -147,43 +147,6 @@
           </template>
         </el-drawer>
       </el-tab-pane>
-
-      <!-- Tab 3: 用量统计 -->
-      <el-tab-pane label="用量统计" name="usage">
-        <div v-loading="aiStore.usageLoading">
-          <el-row :gutter="20" v-if="aiStore.usage">
-            <el-col :span="6" :xs="12" :sm="8" :md="6">
-              <el-card shadow="hover" class="stat-card">
-                <div class="stat-title">分类调用次数</div>
-                <div class="stat-value">{{ aiStore.usage.classify_calls }}</div>
-                <div class="stat-desc">本月累计</div>
-              </el-card>
-            </el-col>
-            <el-col :span="6" :xs="12" :sm="8" :md="6">
-              <el-card shadow="hover" class="stat-card">
-                <div class="stat-title">建议生成次数</div>
-                <div class="stat-value">{{ aiStore.usage.advice_calls }}</div>
-                <div class="stat-desc">本月累计</div>
-              </el-card>
-            </el-col>
-            <el-col :span="6" :xs="12" :sm="8" :md="6">
-              <el-card shadow="hover" class="stat-card">
-                <div class="stat-title">Token 消耗</div>
-                <div class="stat-value">{{ aiStore.usage.total_tokens_used.toLocaleString() }}</div>
-                <div class="stat-desc">{{ aiStore.usage.month }}</div>
-              </el-card>
-            </el-col>
-            <el-col :span="6" :xs="12" :sm="8" :md="6">
-              <el-card shadow="hover" class="stat-card">
-                <div class="stat-title">预估费用</div>
-                <div class="stat-value">¥{{ aiStore.usage.estimated_cost_cny?.toFixed(2) ?? '0.00' }}</div>
-                <div class="stat-desc">本月累计</div>
-              </el-card>
-            </el-col>
-          </el-row>
-          <el-empty v-else description="暂无用量数据" />
-        </div>
-      </el-tab-pane>
     </el-tabs>
   </div>
 </template>
@@ -255,7 +218,6 @@ const formatTime = (t: string | undefined) => {
 // ─── Tab 切换懒加载 ────────────────────────────────
 watch(activeTab, (tab) => {
   if (tab === 'history' && aiStore.historyRecords.length === 0) aiStore.fetchHistory()
-  if (tab === 'usage' && !aiStore.usage) aiStore.fetchUsage()
 })
 
 onMounted(() => {
@@ -348,31 +310,6 @@ onMounted(() => {
 
 .drawer-section {
   margin-bottom: 16px;
-}
-
-.stat-card {
-  border-radius: 12px;
-  border: 1px solid #e5e7eb;
-  text-align: center;
-  padding: 8px 0;
-}
-
-.stat-title {
-  font-size: 14px;
-  color: #6b7280;
-  margin-bottom: 12px;
-}
-
-.stat-value {
-  font-size: 28px;
-  font-weight: 700;
-  color: #111827;
-  margin-bottom: 8px;
-}
-
-.stat-desc {
-  font-size: 12px;
-  color: #9ca3af;
 }
 
 /* Element Plus 绿色主题覆盖 */
