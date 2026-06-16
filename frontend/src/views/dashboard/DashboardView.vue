@@ -117,9 +117,6 @@
       </el-col>
     </el-row>
 
-    <!-- AI 洞察 -->
-    <AIInsightCard />
-
     <!-- 本月预算概览 -->
     <el-card shadow="hover" class="budget-overview-card">
       <template #header>
@@ -305,7 +302,6 @@ import {
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import * as echarts from 'echarts'
 import dayjs from 'dayjs'
-import AIInsightCard from '@/components/business/AIInsightCard.vue'
 import { getBudgets, createBudget } from '@/api/budgets'
 import { getCategories } from '@/api/categories'
 import { getStatisticsOverview } from '@/api/statistics'
