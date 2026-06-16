@@ -193,10 +193,10 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
-import { getCategories } from '@/api/categories'
 import { getAccounts, transfer as transferApi } from '@/api/accounts'
 import { createTransaction } from '@/api/transactions'
-import type { Category, CategoryListPayload } from '@/types/category'
+import { ensureCategoriesLoaded } from '@/utils/category'
+import type { Category } from '@/types/category'
 import type { Account, AccountListPayload } from '@/types/account'
 import type { TransactionType } from '@/types/transaction'
 
@@ -330,6 +330,13 @@ const validate = (): boolean => {
     valid = false
   } else {
     accountError.value = ''
+    if (formData.type === 'expense') {
+      const acc = accounts.value.find(a => a.id === formData.account_id)
+      if (acc && Number(acc.balance) < formData.amount) {
+        accountError.value = '账户余额不足，请先记录收入或调整账户余额'
+        valid = false
+      }
+    }
   }
 
   if (formData.type === 'transfer') {
@@ -381,14 +388,14 @@ const handleSubmit = async () => {
   }
 }
 
-// 加载分类列表：优先使用后端数据，后端无数据时回落到本地预设分类
+// 加载分类列表，无分类时自动初始化系统预设
 const loadCategories = async () => {
   categoryLoading.value = true
   try {
-    const res = await getCategories() as unknown as CategoryListPayload
-    categories.value = res?.categories ?? []
+    categories.value = await ensureCategoriesLoaded()
   } catch {
     categories.value = []
+    ElMessage.warning('分类加载失败，请刷新重试')
   } finally {
     categoryLoading.value = false
   }

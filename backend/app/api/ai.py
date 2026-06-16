@@ -16,7 +16,7 @@ from app.models.user import User
 from app.models.transaction import Transaction
 from app.models.ai_advice_record import AIAdviceRecord
 from app.core.dependencies import get_current_active_user
-from app.services.ai_service import AIService
+from app.services.ai_service import AIService, normalize_budget_suggestion
 
 router = APIRouter()
 ai_service = AIService()
@@ -230,7 +230,7 @@ async def get_advice_detail(
             "highlights": record.highlights,
             "warnings": record.warnings,
             "suggestions": record.suggestions,
-            "next_month_budget": record.budget_suggestion,
+            "next_month_budget": normalize_budget_suggestion(record.budget_suggestion),
             "full_report": record.full_report,
             "tokens_used": record.tokens_used,
             "created_at": record.created_at.isoformat()

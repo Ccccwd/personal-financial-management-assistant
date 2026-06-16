@@ -3,16 +3,81 @@ AI 智能服务模块
 提供账单智能分类和理财建议生成功能
 """
 import json
+import logging
+import time
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Any
 from sqlalchemy.orm import Session
-from openai import OpenAI
+from openai import OpenAI, APIError, APITimeoutError, RateLimitError
 
 from app.config.settings import settings
 from app.models.user import User
 from app.models.category import Category
 from app.models.transaction import Transaction
 from app.models.ai_advice_record import AIAdviceRecord
+
+logger = logging.getLogger(__name__)
+
+
+def _coerce_amount(value: Any) -> Optional[float]:
+    """将金额字段转换为浮点数"""
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def normalize_budget_suggestion(raw: Any) -> Optional[Dict[str, Any]]:
+    """
+    将 LLM 返回的预算建议统一为 API 约定格式。
+
+    兼容中文键（总预算 / 各分类预算）与英文键（total / breakdown）。
+    """
+    if not raw or not isinstance(raw, dict):
+        return None
+
+    total = _coerce_amount(raw.get("total"))
+    if total is None:
+        total = _coerce_amount(raw.get("总预算"))
+
+    breakdown: List[Dict[str, Any]] = []
+    raw_breakdown = raw.get("breakdown")
+    if isinstance(raw_breakdown, list):
+        for item in raw_breakdown:
+            if not isinstance(item, dict):
+                continue
+            category = item.get("category") or item.get("分类") or item.get("name")
+            amount = _coerce_amount(
+                item.get("suggested_amount") or item.get("amount") or item.get("预算")
+            )
+            if category and amount is not None:
+                breakdown.append({
+                    "category": str(category),
+                    "suggested_amount": round(amount, 2),
+                })
+
+    if not breakdown:
+        category_map = raw.get("各分类预算") or raw.get("categories")
+        if isinstance(category_map, dict):
+            for category, amount in category_map.items():
+                val = _coerce_amount(amount)
+                if val is not None:
+                    breakdown.append({
+                        "category": str(category),
+                        "suggested_amount": round(val, 2),
+                    })
+
+    if not breakdown and total is None:
+        return None
+
+    if total is None and breakdown:
+        total = round(sum(item["suggested_amount"] for item in breakdown), 2)
+    else:
+        total = round(total or 0, 2)
+
+    return {"total": total, "breakdown": breakdown}
 
 
 class AIService:
@@ -23,7 +88,8 @@ class AIService:
         "餐饮": [
             "餐厅", "外卖", "咖啡", "奶茶", "火锅", "烧烤",
             "麦当劳", "肯德基", "瑞幸", "星巴克", "美团", "饿了么",
-            "喜茶", "奈雪", "茶百道", "古茗", "蜜雪冰城"
+            "喜茶", "奈雪", "茶百道", "古茗", "蜜雪冰城",
+            "肉包", "包子", "早阳", "早餐", "食堂", "饭店", "小吃",
         ],
         "交通": [
             "滴滴", "出租", "地铁", "公交", "加油", "停车",
@@ -44,7 +110,7 @@ class AIService:
         ],
         "教育": [
             "培训", "课程", "书籍", "学费", "教育", "学习",
-            "辅导", "考试", "学校"
+            "辅导", "考试", "学校", "大学", "一卡通", "校园",
         ],
         "住房": [
             "房租", "物业", "水电", "燃气", "采暖", "宽带",
@@ -77,6 +143,44 @@ class AIService:
             )
         return self._client
 
+    def _call_llm(self, messages: list, temperature: float = 0.7,
+                  response_format: Optional[dict] = None, max_retries: int = 2):
+        """
+        统一 LLM 调用，带重试逻辑
+
+        Args:
+            messages: 消息列表
+            temperature: 温度参数
+            response_format: 响应格式
+            max_retries: 最大重试次数
+
+        Returns:
+            OpenAI ChatCompletion 响应
+        """
+        kwargs = {
+            "model": settings.ai_model,
+            "messages": messages,
+            "temperature": temperature,
+        }
+        if response_format:
+            kwargs["response_format"] = response_format
+
+        last_exc = None
+        for attempt in range(max_retries + 1):
+            try:
+                return self.client.chat.completions.create(**kwargs)
+            except (APITimeoutError, RateLimitError) as e:
+                last_exc = e
+                if attempt < max_retries:
+                    wait = 2 ** attempt
+                    logger.warning("LLM 调用失败（第 %d 次），%d 秒后重试: %s", attempt + 1, wait, e)
+                    time.sleep(wait)
+            except APIError as e:
+                logger.error("LLM API 错误: %s", e)
+                raise
+
+        raise last_exc
+
     def _match_by_rules(self, merchant_name: str, transaction_type: str) -> Optional[str]:
         """
         使用规则匹配分类
@@ -99,6 +203,56 @@ class AIService:
                     return category_name
 
         return None
+
+    def _get_user_categories(
+        self,
+        db: Session,
+        user_id: int,
+        transaction_type: Optional[str] = None,
+    ) -> List[Category]:
+        """获取当前用户的分类列表（不包含其他用户数据）。"""
+        query = db.query(Category).filter(Category.user_id == user_id)
+        if transaction_type:
+            query = query.filter(Category.type == transaction_type)
+        return query.order_by(Category.sort_order, Category.id).all()
+
+    def _resolve_category_id(
+        self,
+        db: Session,
+        user_id: int,
+        category_id: Optional[int],
+        category_name: Optional[str],
+        transaction_type: str,
+    ) -> Optional[int]:
+        """校验并解析分类 ID，确保属于当前用户且类型匹配。"""
+        if category_id:
+            category = db.query(Category).filter(
+                Category.id == category_id,
+                Category.user_id == user_id,
+                Category.type == transaction_type,
+            ).first()
+            if category:
+                return category.id
+        if category_name:
+            category = self._find_category_by_name(
+                db, user_id, category_name, transaction_type
+            )
+            if category:
+                return category.id
+        return None
+
+    def _get_fallback_category_id(
+        self,
+        db: Session,
+        user_id: int,
+        transaction_type: str,
+    ) -> Optional[int]:
+        """获取当前用户在指定类型下的默认兜底分类 ID。"""
+        fallback_name = "其他收入" if transaction_type == "income" else "其他"
+        category = self._find_category_by_name(
+            db, user_id, fallback_name, transaction_type
+        )
+        return category.id if category else None
 
     def _find_category_by_name(
         self,
@@ -142,14 +296,14 @@ class AIService:
         Returns:
             分类结果列表
         """
-        # 获取用户的分类列表
-        categories = db.query(Category).filter(
-            (Category.user_id == user_id) | (Category.is_system),
-            Category.type == "expense"
-        ).all()
+        transaction_types = {
+            item.get("transaction_type", "expense") for item in items
+        }
+        categories = self._get_user_categories(db, user_id)
+        categories = [c for c in categories if c.type in transaction_types]
 
         category_list = [
-            {"id": c.id, "name": c.name, "is_system": c.is_system}
+            {"id": c.id, "name": c.name, "type": c.type, "is_system": c.is_system}
             for c in categories
         ]
 
@@ -195,8 +349,7 @@ class AIService:
 """
 
         try:
-            response = self.client.chat.completions.create(
-                model=settings.ai_model,
+            response = self._call_llm(
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1,
                 response_format={"type": "json_object"}
@@ -208,29 +361,48 @@ class AIService:
             if isinstance(result, dict) and "results" in result:
                 result = result["results"]
 
-            return result
+            validated: List[Dict[str, Any]] = []
+            for r in result:
+                idx = r.get("index", 0)
+                item = items[idx] if 0 <= idx < len(items) else items[0]
+                txn_type = item.get("transaction_type", "expense")
+                resolved_id = self._resolve_category_id(
+                    db,
+                    user_id,
+                    r.get("category_id"),
+                    r.get("category_name"),
+                    txn_type,
+                )
+                category_name = r.get("category_name", "其他")
+                if resolved_id:
+                    category = db.query(Category).filter(Category.id == resolved_id).first()
+                    if category:
+                        category_name = category.name
+                validated.append({
+                    "index": idx,
+                    "category_id": resolved_id,
+                    "category_name": category_name,
+                    "confidence": r.get("confidence", 0.7),
+                })
+            return validated
 
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.warning("LLM 分类结果解析失败: %s", e)
         except Exception as e:
-            # LLM 调用失败，返回默认分类
-            print(f"LLM 分类失败: {str(e)}")
-            # 找到"其他"分类
-            other_category = db.query(Category).filter(
-                (Category.user_id == user_id) | (Category.is_system),
-                Category.name == "其他",
-                Category.type == "expense"
-            ).first()
+            logger.error("LLM 分类调用失败: %s", e)
 
-            category_id = other_category.id if other_category else None
-
-            return [
-                {
-                    "index": i,
-                    "category_id": category_id,
-                    "category_name": "其他",
-                    "confidence": 0.5
-                }
-                for i in range(len(items))
-            ]
+        # LLM 调用失败，按交易类型返回当前用户的默认分类
+        return [
+            {
+                "index": i,
+                "category_id": self._get_fallback_category_id(
+                    db, user_id, item.get("transaction_type", "expense")
+                ),
+                "category_name": "其他收入" if item.get("transaction_type") == "income" else "其他",
+                "confidence": 0.5,
+            }
+            for i, item in enumerate(items)
+        ]
 
     def classify_items(
         self,
@@ -294,16 +466,28 @@ class AIService:
             for r in llm_response:
                 llm_result_map[r.get("index", 0)] = r
 
-            # 将 LLM 结果插入正确位置
+            # 将 LLM 结果插入正确位置（校验分类归属当前用户）
             for i, original_idx in enumerate(llm_indices):
                 llm_result = llm_result_map.get(i, {})
                 item = llm_items[i][1]
+                txn_type = item.get("transaction_type", "expense")
+                resolved_id = self._resolve_category_id(
+                    db,
+                    user_id,
+                    llm_result.get("category_id"),
+                    llm_result.get("category_name"),
+                    txn_type,
+                )
+                category_name = llm_result.get("category_name", "未知")
+                if resolved_id:
+                    category = db.query(Category).filter(Category.id == resolved_id).first()
+                    category_name = category.name if category else category_name
 
                 results.append({
                     "index": original_idx,
                     "merchant_name": item.get("merchant_name", ""),
-                    "category_id": llm_result.get("category_id"),
-                    "category_name": llm_result.get("category_name", "未知"),
+                    "category_id": resolved_id,
+                    "category_name": category_name,
                     "confidence": llm_result.get("confidence", 0.7),
                     "matched_by": "llm"
                 })
@@ -369,12 +553,35 @@ class AIService:
         result = self.classify_by_llm(db, user_id, [item])
 
         if result and len(result) > 0:
+            r = result[0]
+            resolved_id = self._resolve_category_id(
+                db,
+                user_id,
+                r.get("category_id"),
+                r.get("category_name"),
+                item["transaction_type"],
+            )
+            category_name = r.get("category_name", "未知")
+            if resolved_id:
+                category = db.query(Category).filter(Category.id == resolved_id).first()
+                category_name = category.name if category else category_name
             return {
                 "transaction_id": transaction_id,
-                "category_id": result[0].get("category_id"),
-                "category_name": result[0].get("category_name", "未知"),
-                "confidence": result[0].get("confidence", 0.7),
+                "category_id": resolved_id,
+                "category_name": category_name,
+                "confidence": r.get("confidence", 0.7),
                 "matched_by": "llm"
+            }
+
+        fallback_id = self._get_fallback_category_id(db, user_id, item["transaction_type"])
+        if fallback_id:
+            category = db.query(Category).filter(Category.id == fallback_id).first()
+            return {
+                "transaction_id": transaction_id,
+                "category_id": fallback_id,
+                "category_name": category.name if category else "其他",
+                "confidence": 0.5,
+                "matched_by": "rule",
             }
 
         return None
@@ -420,7 +627,7 @@ class AIService:
                     "highlights": cached.highlights,
                     "warnings": cached.warnings,
                     "suggestions": cached.suggestions,
-                    "next_month_budget": cached.budget_suggestion,
+                    "next_month_budget": normalize_budget_suggestion(cached.budget_suggestion),
                     "full_report": cached.full_report
                 }
             }
@@ -485,8 +692,10 @@ class AIService:
   "warnings": ["预警信息1", "预警信息2"],
   "suggestions": ["建议1", "建议2", "建议3"],
   "next_month_budget": {{
-    "总预算": 金额,
-    "各分类预算": {{"分类名": 金额}}
+    "total": 金额数字,
+    "breakdown": [
+      {{"category": "分类名", "suggested_amount": 金额数字}}
+    ]
   }},
   "full_report": "完整的理财建议报告文本"
 }}
@@ -501,8 +710,7 @@ class AIService:
 """
 
         try:
-            response = self.client.chat.completions.create(
-                model=settings.ai_model,
+            response = self._call_llm(
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.7,
                 response_format={"type": "json_object"}
@@ -510,9 +718,12 @@ class AIService:
 
             content = response.choices[0].message.content
             advice_data = json.loads(content)
+            normalized_budget = normalize_budget_suggestion(
+                advice_data.get("next_month_budget")
+            )
 
             # 计算消耗的 Token
-            tokens_used = response.usage.total_tokens if hasattr(response, "usage") else 0
+            tokens_used = response.usage.total_tokens if response.usage else 0
 
             # 保存到数据库
             record = AIAdviceRecord(
@@ -523,7 +734,7 @@ class AIService:
                 highlights=advice_data.get("highlights", []),
                 warnings=advice_data.get("warnings", []),
                 suggestions=advice_data.get("suggestions", []),
-                budget_suggestion=advice_data.get("next_month_budget"),
+                budget_suggestion=normalized_budget,
                 full_report=advice_data.get("full_report", ""),
                 tokens_used=tokens_used,
                 from_cache=False
@@ -539,13 +750,13 @@ class AIService:
                     "highlights": record.highlights,
                     "warnings": record.warnings,
                     "suggestions": record.suggestions,
-                    "next_month_budget": record.budget_suggestion,
+                    "next_month_budget": normalized_budget,
                     "full_report": record.full_report
                 }
             }
 
         except Exception as e:
-            print(f"生成建议失败: {str(e)}")
+            logger.error("生成理财建议失败: %s", e)
             return {
                 "generated_at": datetime.now(),
                 "from_cache": False,

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="transaction-list-page">
     <div class="page-header">
       <h1 class="page-title">交易记录</h1>
@@ -138,47 +138,32 @@
       </div>
 
       <div class="category-picker" v-loading="loadingCategories">
-        <template v-if="expenseCategories.length || incomeCategories.length">
-          <!-- 支出分类 -->
-          <div v-if="expenseCategories.length" class="category-group">
-            <div class="category-group__title">支出分类</div>
-            <div class="category-grid">
-              <div
-                v-for="cat in expenseCategories"
-                :key="cat.id"
-                :class="['cat-item', { 'cat-item--active': selectedCategoryId === cat.id }]"
-                @click="selectedCategoryId = cat.id"
-              >
-                <span class="cat-item__icon" :style="cat.color ? { background: `linear-gradient(135deg,${cat.color}CC,${cat.color}88)` } : {}">
-                  {{ cat.icon || '📝' }}
-                </span>
-                <span class="cat-item__name">{{ cat.name }}</span>
-              </div>
+        <div v-if="classifyCategories.length" class="category-group">
+          <div class="category-group__title">
+            {{ classifyTarget?.type === 'income' ? '收入分类' : '支出分类' }}
+          </div>
+          <div class="category-grid">
+            <div
+              v-for="cat in classifyCategories"
+              :key="cat.id"
+              :class="['cat-item', { 'cat-item--active': selectedCategoryId === cat.id }]"
+              @click="selectedCategoryId = cat.id"
+            >
+              <span class="cat-item__icon" :style="cat.color ? { background: `linear-gradient(135deg,${cat.color}CC,${cat.color}88)` } : {}">
+                {{ cat.icon || '📝' }}
+              </span>
+              <span class="cat-item__name">{{ cat.name }}</span>
             </div>
           </div>
-          <!-- 收入分类 -->
-          <div v-if="incomeCategories.length" class="category-group">
-            <div class="category-group__title">收入分类</div>
-            <div class="category-grid">
-              <div
-                v-for="cat in incomeCategories"
-                :key="cat.id"
-                :class="['cat-item', { 'cat-item--active': selectedCategoryId === cat.id }]"
-                @click="selectedCategoryId = cat.id"
-              >
-                <span class="cat-item__icon" :style="cat.color ? { background: `linear-gradient(135deg,${cat.color}CC,${cat.color}88)` } : {}">
-                  {{ cat.icon || '📝' }}
-                </span>
-                <span class="cat-item__name">{{ cat.name }}</span>
-              </div>
-            </div>
-          </div>
-        </template>
+        </div>
         <el-empty v-else description="暂无分类数据" :image-size="60" />
       </div>
 
       <template #footer>
         <el-button @click="classifyVisible = false">取消</el-button>
+        <el-button plain :loading="aiReclassifying" @click="handleAIClassify">
+          AI 识别
+        </el-button>
         <el-button type="primary" :loading="classifying" :disabled="!selectedCategoryId" @click="submitClassify">
           保存
         </el-button>
@@ -190,15 +175,18 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import TransactionCard from '@/components/business/TransactionCard.vue'
 import { getTransactions, updateTransaction } from '@/api/transactions'
-import { getCategories } from '@/api/categories'
+import { useAIStore } from '@/stores/ai'
+import { ensureCategoriesLoaded } from '@/utils/category'
+import type { Category } from '@/types/category'
 import type { Transaction, TransactionQuery, TransactionListPayload } from '@/types/transaction'
 
 const router = useRouter()
+const aiStore = useAIStore()
 
 // ── 列表状态 ────────────────────────────────────────────
 const loading = ref(false)
@@ -288,18 +276,19 @@ const classifyVisible   = ref(false)
 const classifyTarget    = ref<Transaction | null>(null)
 const selectedCategoryId = ref<number | null>(null)
 const classifying       = ref(false)
+const aiReclassifying   = ref(false)
 const loadingCategories = ref(false)
-const allCategories     = ref<any[]>([])
+const allCategories = ref<Category[]>([])
 
-const expenseCategories = computed(() => allCategories.value.filter(c => c.type === 'expense'))
-const incomeCategories  = computed(() => allCategories.value.filter(c => c.type === 'income'))
+const classifyCategories = computed(() => {
+  if (!classifyTarget.value || classifyTarget.value.type === 'transfer') return []
+  return allCategories.value.filter(c => c.type === classifyTarget.value!.type)
+})
 
 const loadCategoriesOnce = async () => {
-  if (allCategories.value.length) return
   loadingCategories.value = true
   try {
-    const res = await getCategories() as any
-    allCategories.value = res?.categories ?? []
+    allCategories.value = await ensureCategoriesLoaded()
   } finally {
     loadingCategories.value = false
   }
@@ -310,15 +299,51 @@ const openClassify = async (txn: Transaction) => {
   selectedCategoryId.value = txn.category_id ?? null
   classifyVisible.value = true
   await loadCategoriesOnce()
+  if (selectedCategoryId.value) {
+    const matched = classifyCategories.value.some(c => c.id === selectedCategoryId.value)
+    if (!matched) selectedCategoryId.value = null
+  }
+}
+
+const handleAIClassify = async () => {
+  if (!classifyTarget.value) return
+  const txn = classifyTarget.value
+  aiReclassifying.value = true
+  try {
+    const preview = await aiStore.reclassify(txn.id, true)
+    if (!preview?.category_id) return
+    const currentName = txn.category_name || '未分类'
+    if (preview.category_name === currentName) {
+      ElMessage.info('AI 推荐分类与当前一致')
+      return
+    }
+    await ElMessageBox.confirm(
+      `建议将分类从「${currentName}」改为「${preview.category_name}」，是否应用？`,
+      'AI 智能分类',
+      { confirmButtonText: '应用', cancelButtonText: '取消' }
+    )
+    await aiStore.reclassify(txn.id, false)
+    ElMessage.success('AI 分类已应用')
+    classifyVisible.value = false
+    await fetchList()
+  } catch {
+    // 取消或错误
+  } finally {
+    aiReclassifying.value = false
+  }
 }
 
 const submitClassify = async () => {
   if (!classifyTarget.value || !selectedCategoryId.value) return
+  const cat = allCategories.value.find(c => c.id === selectedCategoryId.value)
+  if (!cat || cat.type !== classifyTarget.value.type) {
+    ElMessage.warning('请选择与交易类型匹配的分类')
+    return
+  }
   classifying.value = true
   try {
     await updateTransaction(classifyTarget.value.id, { category_id: selectedCategoryId.value })
     // 本地更新，避免刷新整页
-    const cat = allCategories.value.find(c => c.id === selectedCategoryId.value)
     const idx = transactions.value.findIndex(t => t.id === classifyTarget.value!.id)
     if (idx !== -1) {
       transactions.value[idx] = {
@@ -326,6 +351,7 @@ const submitClassify = async () => {
         category_id:   selectedCategoryId.value,
         category_name: cat?.name,
         category_icon: cat?.icon,
+        category_color: cat?.color,
       } as Transaction
     }
     ElMessage.success('分类已更新')
