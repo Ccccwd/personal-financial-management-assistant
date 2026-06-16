@@ -188,8 +188,13 @@ class TestAIServiceClassifyWithMock:
         mock_category = MagicMock()
         mock_category.id = 1
         mock_category.name = "餐饮"
+        mock_category.type = "expense"
         mock_category.is_system = True
-        db.query.return_value.filter.return_value.all.return_value = [mock_category]
+
+        query_mock = MagicMock()
+        query_mock.filter.return_value.order_by.return_value.all.return_value = [mock_category]
+        query_mock.filter.return_value.first.return_value = mock_category
+        db.query.return_value = query_mock
 
         result = service.classify_by_llm(db, 1, [
             {"merchant_name": "某餐厅", "product_name": "午餐", "amount": 35, "transaction_type": "expense"}
