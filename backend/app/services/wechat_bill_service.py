@@ -227,7 +227,6 @@ class WeChatBillService:
 
     def _auto_classify_imported(self, db, user_id: int, transactions: list) -> int:
         """对导入的交易记录自动分类：LLM 优先 → 规则匹配兜底 → "其他"保底"""
-        from app.models.category import Category
         from app.services.ai_service import AIService
 
         ai_service = AIService()
