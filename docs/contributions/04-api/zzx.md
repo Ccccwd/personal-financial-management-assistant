@@ -22,7 +22,7 @@
 - 个人贡献说明
 
 ### 3. 前端实现
-- HTTP 客户端配置（`frontend/src/utils/request.ts`）
+- HTTP 客户端配置（`frontend/src/api/request.ts`）
   - Axios 实例创建，baseURL 配置
   - 请求拦截器：自动注入 JWT Bearer Token
   - 响应拦截器：统一解包 `{ code, message, data }` 格式，自动处理错误提示

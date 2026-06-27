@@ -43,10 +43,10 @@ REDIS_URL=${{Redis.REDIS_URL}}
 # JWT 密钥（生成方式：python -c "import secrets; print(secrets.token_urlsafe(32))"）
 SECRET_KEY=<随机强密钥>
 
-# AI 配置
-AI_API_KEY=<智谱AI API Key>
-AI_BASE_URL=https://open.bigmodel.cn/api/paas/v4
-AI_MODEL=glm-5.1
+# AI 配置（DeepSeek，与 backend/.env.example 一致）
+AI_API_KEY=<DeepSeek API Key>
+AI_BASE_URL=https://api.deepseek.com
+AI_MODEL=deepseek-chat
 
 # 应用环境
 APP_ENV=production
