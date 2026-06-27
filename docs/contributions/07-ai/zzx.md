@@ -2,57 +2,68 @@
 
 姓名：曾昭祥  
 学号：2312190219  
-日期：2026-06-17（更新：移除智能分类功能）
+日期：2026-06-27（更新：对齐最终代码）
 
 ## 我完成的工作
 
-### AI API 封装与类型定义
+### 1. AI API 封装与类型定义
 
-- [x] 实现 `frontend/src/api/ai.ts`，对接后端理财建议相关接口
-  - `getAIAdvice`：获取理财建议（超时设为 120s，适配 LLM 生成耗时）
-  - `getAIAdviceHistory` / `getAIAdviceDetail`：历史记录与详情
+- [x] `frontend/src/api/ai.ts`：理财建议相关接口（**不含** classify/reclassify）
+  - `getAIAdvice`：获取理财建议（超时 120s）
+  - `getAIAdviceHistory` / `getAIAdviceDetail`：历史记录
   - `getAIUsage`：用量统计
-- [x] 定义 `frontend/src/types/ai.ts`，覆盖建议内容、预算 breakdown、历史记录等 TypeScript 类型
+- [x] `frontend/src/types/ai.ts`：建议内容、预算 breakdown、历史记录等类型
 
-### Pinia 状态管理
+### 2. Pinia 状态管理
 
-- [x] 实现 `frontend/src/stores/ai.ts`
-  - 建议生成、历史列表分页、详情拉取、用量统计
-  - `normalizeAdviceDetail`：将历史详情接口的扁平结构规范为页面统一的 `advice` 结构
+- [x] `frontend/src/stores/ai.ts`：建议生成、历史分页、详情、用量
+- [x] `normalizeAdviceDetail`：统一历史详情与实时建议的数据结构
 
-### 智能分析主页面（`AIView.vue`）
+### 3. 智能分析主页面
 
-- [x] 注册路由 `/ai`，侧边栏入口「智能分析」
-- [x] **智能建议** Tab：分析周期选择、强制刷新生成、缓存/新生成标签
-- [x] 三列卡片布局：消费亮点 → 优化建议 → 风险提醒
-- [x] **下月预算建议**：`AIBudgetChart` 横向柱状图
-- [x] **历史记录** Tab：分页表格 + 详情抽屉
+- [x] `frontend/src/views/ai/AIView.vue`，路由 `/ai`，侧边栏「智能分析」
+- [x] 智能建议 Tab：分析周期、强制刷新、缓存/新生成标签
+- [x] 三列卡片：消费亮点 → 优化建议 → 风险提醒
+- [x] 下月预算建议：`AIBudgetChart` 横向柱状图
+- [x] 历史记录 Tab：分页表格 + 详情抽屉
 
-### 业务组件
+### 4. 业务组件
 
 - [x] `AIAdviceCard.vue`、`AIBudgetChart.vue`、`AIInsightCard.vue`
 
-### 交易分类（手动）
+### 5. 交易分类（非 AI 按钮）
 
-- [x] **交易流水**（`TransactionList.vue`）：未分类条目「待分类」入口，弹窗手动选择分类保存
-- [x] **微信账单导入**（`WechatImport.vue`）：导入设置可选默认分类；导入结果页仅展示统计与跳转
+- [x] **微信导入**（`WechatImport.vue`）：导入设置可选默认分类；导入完成后由**后端** `_auto_classify_imported` 自动分类（前端仅展示 `classified_count` 统计）
+- [x] **交易列表/详情**：未分类条目可**手动选择**分类保存（无「AI 识别」按钮）
 
-### 已移除（2026-06-17）
+### 6. 已移除（PR #37）
 
-- ~~批量/单条 AI 智能分类（`aiClassify`、`reclassifyTransaction`）~~
-- ~~导入结果页「智能分类」按钮、交易详情/列表「AI 识别」~~
+- ~~`POST /api/ai/classify`、`/api/ai/reclassify`~~
+- ~~导入结果页/交易页的「智能分类」「AI 识别」按钮~~
+- ~~`aiClassify`、`reclassifyTransaction` 等前端 API~~
 
 ## 涉及文件
 
 | 路径 | 说明 |
 |------|------|
-| `frontend/src/api/ai.ts` | AI 接口封装（仅理财建议） |
+| `frontend/src/api/ai.ts` | 理财建议接口 |
 | `frontend/src/types/ai.ts` | 类型定义 |
 | `frontend/src/stores/ai.ts` | Pinia 状态 |
-| `frontend/src/views/ai/AIView.vue` | 智能分析主页面 |
+| `frontend/src/views/ai/AIView.vue` | 智能分析页 |
+| `frontend/src/views/import/WechatImport.vue` | 导入（展示自动分类条数） |
 | `frontend/src/views/transaction/TransactionList.vue` | 手动快速分类 |
-| `frontend/src/views/import/WechatImport.vue` | 账单导入 |
+| `frontend/src/views/transaction/TransactionDetail.vue` | 手动修改分类 |
+
+## PR 链接
+
+- PR #37: https://github.com/Ccccwd/personal-financial-management-assistant/pull/37
+
+## 截图占位（学习通 / 答辩）
+
+1. 「智能分析」页生成理财建议完整界面
+2. 微信导入结果页显示「AI 分类 N 条」
+3. 交易列表中导入记录已带分类（无 AI 按钮）
 
 ## 心得体会
 
-当前 AI 能力聚焦**理财建议**单一主线，降低答辩演示与维护复杂度。交易分类由用户手动完成，与导入时可选默认分类配合，仍能满足记账场景需求。
+最终版将 AI 能力收敛为「导入后后端自动分类 + 前端理财建议展示」两条主线，降低答辩复杂度，同时与 `docs/ai-features.md`、后端 `wechat_bill_service.py` 保持一致。

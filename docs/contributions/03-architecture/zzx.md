@@ -43,7 +43,7 @@ frontend/
 
 ### 3) 核心基础设施代码实现
 
-- **网络请求层封装 (`src/utils/request.ts`)**：
+- **网络请求层封装 (`src/api/request.ts`)**：
   - 封装全局 Axios 实例，配置超时与 Base URL。
   - **请求拦截器**：实现 JWT Token 的自动注入。
   - **响应拦截器**：统一处理 HTTP 状态码，对 401 未授权自动登出，并对网络异常进行全局提示。
@@ -64,7 +64,7 @@ frontend/
 |------|-----------|------|
 | **环境配置** | `vite.config.ts` | 别名配置、Plugins集成、Server设置 |
 |  | `tsconfig.node.json` | 修复 TypeScript 配置文件解析错误 |
-| **基础架构** | `src/utils/request.ts` | Axios 二次封装，统一拦截器处理 |
+| **基础架构** | `src/api/request.ts` | Axios 二次封装，统一拦截器处理 |
 |  | `src/router/index.ts` | 路由配置与全局权限守卫逻辑 |
 |  | `src/utils/auth.ts` | Token 本地存储 (LocalStorage) 管理工具 |
 |  | `src/api/*` | 统一的 API 接口定义层 |
