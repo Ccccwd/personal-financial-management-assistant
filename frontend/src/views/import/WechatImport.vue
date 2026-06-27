@@ -251,29 +251,6 @@
             </div>
           </template>
           <template #extra>
-            <!-- 智能分类区域 -->
-            <div class="ai-classify-block">
-              <template v-if="!aiClassifyState.done">
-                <el-button
-                  type="success"
-                  :loading="aiClassifyState.loading"
-                  @click="runBatchClassify"
-                >
-                  <el-icon v-if="!aiClassifyState.loading"><MagicStick /></el-icon>
-                  {{ aiClassifyState.loading ? `智能识别中 (${aiClassifyState.current}/${aiClassifyState.total})` : '智能分类' }}
-                </el-button>
-                <div class="ai-classify-hint">自动识别未分类账单的交易类别</div>
-              </template>
-              <el-alert
-                v-else
-                type="success"
-                :closable="false"
-                show-icon
-                style="margin-bottom:8px"
-              >
-                已完成识别：{{ aiClassifyState.successCount }}/{{ aiClassifyState.total }} 条成功分类
-              </el-alert>
-            </div>
             <div class="result-actions">
               <el-button @click="resetImport">继续导入</el-button>
               <el-button type="primary" @click="$router.push('/transactions')">查看账单流水</el-button>
@@ -341,7 +318,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import {
   UploadFilled, Document, Clock, QuestionFilled,
-  Calendar, CircleCheckFilled, WarningFilled, MagicStick,
+  Calendar, CircleCheckFilled, WarningFilled,
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import type { UploadFile } from 'element-plus'
@@ -350,9 +327,6 @@ import dayjs from 'dayjs'
 import { previewBill, importBill, getImportLogs } from '@/api/wechat'
 import { getAccounts } from '@/api/accounts'
 import { getCategories } from '@/api/categories'
-import { getTransactions } from '@/api/transactions'
-import { aiClassify } from '@/api/ai'
-
 import type { ImportPreviewResponse, ImportResult, ImportLog } from '@/types/wechat'
 import type { AccountListPayload } from '@/types/account'
 import type { CategoryListPayload, Category } from '@/types/category'
@@ -369,15 +343,6 @@ const loadingCategories  = ref(false)
 // ── 数据 ─────────────────────────────────────────────────
 const previewData  = ref<ImportPreviewResponse | null>(null)
 const importResult = ref<ImportResult | null>(null)
-
-// ── AI 批量分类 ────────────────────────────────────────────
-const aiClassifyState = reactive({
-  loading: false,
-  done: false,
-  total: 0,
-  current: 0,
-  successCount: 0,
-})
 
 const accounts   = ref<{ id: number; name: string; type: string }[]>([])
 const allCategories = ref<Category[]>([])
@@ -504,69 +469,6 @@ const resetImport = () => {
   previewData.value  = null
   importResult.value = null
   importConfig.category_id = undefined
-  aiClassifyState.loading = false
-  aiClassifyState.done    = false
-  aiClassifyState.total   = 0
-  aiClassifyState.current = 0
-  aiClassifyState.successCount = 0
-}
-
-const runBatchClassify = async () => {
-  if (!previewData.value?.date_range) return
-  aiClassifyState.loading = true
-  aiClassifyState.done    = false
-  aiClassifyState.total   = 0
-  aiClassifyState.current = 0
-  aiClassifyState.successCount = 0
-
-  try {
-    const { start_date, end_date } = previewData.value.date_range
-    const listRes = await getTransactions({
-      start_date,
-      end_date,
-      page_size: 500,
-      page: 1,
-    }) as any
-    const all: any[] = listRes?.transactions ?? listRes?.data?.transactions ?? []
-    const uncategorized = all.filter((t: any) => !t.category_id)
-    aiClassifyState.total = uncategorized.length
-
-    if (uncategorized.length === 0) {
-      ElMessage.info('该批账单已全部完成分类，无需识别')
-      aiClassifyState.done = true
-      return
-    }
-
-    // 使用批量分类接口（每批最多 20 条）
-    const BATCH_SIZE = 20
-    for (let i = 0; i < uncategorized.length; i += BATCH_SIZE) {
-      const batch = uncategorized.slice(i, i + BATCH_SIZE)
-      const items = batch.map((t: any) => ({
-        merchant_name: t.merchant_name || '',
-        product_name: t.remark || '',
-        amount: Number(t.amount),
-        transaction_type: t.type || 'expense',
-      }))
-
-      try {
-        const res = await aiClassify(items) as any
-        const results = res?.results ?? res?.data?.results ?? []
-        aiClassifyState.successCount += results.filter(
-          (r: any) => r.category_id && r.confidence >= 0.5
-        ).length
-      } catch {
-        // 单批失败不中断
-      }
-      aiClassifyState.current = Math.min(i + BATCH_SIZE, uncategorized.length)
-    }
-
-    aiClassifyState.done = true
-    ElMessage.success(`智能分类完成：${aiClassifyState.successCount}/${aiClassifyState.total} 条成功识别`)
-  } catch {
-    ElMessage.error('智能分类失败，请稍后重试')
-  } finally {
-    aiClassifyState.loading = false
-  }
 }
 
 // ── 历史记录 ──────────────────────────────────────────────
@@ -1032,19 +934,6 @@ onMounted(() => {
 :deep(.el-step__head.is-process) {
   color: #16a34a;
   border-color: #16a34a;
-}
-
-.ai-classify-block {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 16px;
-}
-
-.ai-classify-hint {
-  font-size: 12px;
-  color: #9ca3af;
 }
 
 .result-actions {

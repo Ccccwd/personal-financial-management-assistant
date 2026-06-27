@@ -1,34 +1,12 @@
 import request from '@/api/request'
 import {
-  AIClassifyItem,
-  AIClassifyResponse,
   AIAdviceDetail,
   AIAdviceHistoryPayload,
   AIAdviceResponse,
   AIUsage,
-  ReclassifyResponse
 } from '@/types/index'
 
 const AI_ADVICE_TIMEOUT = 120000
-
-/**
- * 账单智能分类
- * @param items 待分类条目列表
- */
-export function aiClassify(items: AIClassifyItem[]) {
-  return request.post<AIClassifyResponse>('/ai/classify', { items })
-}
-
-/**
- * 重新分类单条交易
- * @param transactionId 交易ID
- * @param dryRun 是否仅预览
- */
-export function reclassifyTransaction(transactionId: number, dryRun: boolean = false) {
-  return request.post<ReclassifyResponse>(`/ai/reclassify/${transactionId}`, null, {
-    params: { dry_run: dryRun }
-  })
-}
 
 /**
  * 获取个性化理财建议

@@ -23,7 +23,7 @@
   - 账户：CRUD、列表、摘要、默认账户、转账、余额调整
   - 提醒：CRUD、列表过滤、统计、今日提醒、切换状态
   - 报告：月度报告、年度报告、分类分析、自动报告生成
-  - AI：智能分类、重新分类、理财建议、历史记录、用量统计
+  - AI：理财建议、历史记录、用量统计
   - 余额历史：全局历史、账户历史、类型过滤、分页
 
 - [x] 边界 / 异常情况测试（18 个）
@@ -38,7 +38,7 @@
   - 余额不足转账返回 400
   - 向同一账户转账返回 400
   - 无交易数据时 AI 建议返回默认提示
-  - LLM 调用失败时降级返回默认分类
+  - LLM 调用失败时降级返回默认建议
   - 空商户名规则匹配返回 None
   - 不存在的分类分析返回 404
   - 不存在的建议记录返回 404
@@ -47,12 +47,8 @@
   - 相同密码生成不同哈希
 
 - [x] Mock 使用（8 处）
-  - `@patch.object(AIService, 'classify_by_llm')` - Mock LLM 分类调用
-  - `@patch.object(AIService, '_find_category_by_name')` - Mock 数据库分类查询
   - `@patch('app.services.ai_service.OpenAI')` - Mock OpenAI 客户端
   - `@patch('app.services.ai_service.AIService.generate_advice')` - Mock 建议生成
-  - `@patch('app.services.ai_service.AIService.reclassify_transaction')` - Mock 重新分类
-  - `@patch('app.services.ai_service.AIService.classify_items')` - Mock 批量分类
 
 ### 覆盖率
 

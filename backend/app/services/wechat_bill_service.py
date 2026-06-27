@@ -118,7 +118,7 @@ class WeChatBillService:
                            account_id: Optional[int] = None,
                            category_id: Optional[int] = None,
                            auto_classify: bool = True) -> dict:
-        """批量导入交易记录到数据库，可选自动 AI 分类"""
+        """批量导入交易记录到数据库，导入后可选自动 AI 分类"""
         from app.models.transaction import Transaction
         from app.models.account import Account
         from app.models.import_log import ImportLog, ImportStatus
@@ -200,7 +200,7 @@ class WeChatBillService:
         for t in imported_transactions:
             db.refresh(t)
 
-        # 自动 AI 分类
+        # 自动 AI 分类（仅对未指定 category_id 的导入记录）
         classified_count = 0
         if auto_classify and imported_transactions:
             classified_count = self._auto_classify_imported(db, user_id, imported_transactions)
@@ -226,7 +226,7 @@ class WeChatBillService:
         }
 
     def _auto_classify_imported(self, db, user_id: int, transactions: list) -> int:
-        """对导入的交易记录自动分类：LLM 优先 → 规则匹配兜底 → "其他"保底"""
+        """对导入的交易记录自动分类：规则匹配优先 → LLM 补充 → 默认分类兜底"""
         from app.services.ai_service import AIService
 
         ai_service = AIService()
@@ -241,7 +241,6 @@ class WeChatBillService:
             matched_category_id = None
             matched_by = None
 
-            # 第一优先：规则匹配（快速且节省 Token）
             search_text = f"{merchant_name} {description}".strip()
             matched_category_name = ai_service._match_by_rules(search_text, transaction.type)
             if matched_category_name:
@@ -252,7 +251,6 @@ class WeChatBillService:
                     matched_category_id = category.id
                     matched_by = "rule"
 
-            # 第二优先：LLM 分类
             if matched_category_id is None:
                 try:
                     items = [{
@@ -276,7 +274,6 @@ class WeChatBillService:
                 except Exception:
                     pass
 
-            # 第三优先：分到当前用户的默认分类
             if matched_category_id is None:
                 matched_category_id = ai_service._get_fallback_category_id(
                     db, user_id, transaction.type
