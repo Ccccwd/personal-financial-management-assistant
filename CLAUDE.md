@@ -2,7 +2,7 @@
 
 ## 1. 项目概述
 
-本项目是一个智能个人财务记账系统，旨在帮助用户进行日常收支记录、预算管理、数据统计和 AI 智能理财建议。系统采用前后端分离架构，支持微信账单导入和智能分类。
+本项目是一个智能个人财务记账系统，旨在帮助用户进行日常收支记录、预算管理、数据统计和 AI 智能理财建议。系统采用前后端分离架构，支持微信账单导入（含导入后自动分类）。
 
 ---
 
@@ -36,7 +36,7 @@
 | 缓存/Token 存储 | Redis | 7.x | JWT 黑名单、统计缓存 |
 | 认证 | python-jose + passlib | — | JWT 生成验证、BCrypt 密码加密 |
 | Excel 导出 | openpyxl | ≥ 3.1 | 账单 Excel 报表生成 |
-| AI 大模型 | OpenAI SDK / DeepSeek API | — | 微信账单智能分类、理财建议生成 |
+| AI 大模型 | OpenAI SDK / DeepSeek API | — | 微信导入自动分类、理财建议生成 |
 | 环境配置 | python-dotenv | — | 读取 `.env` 配置文件 |
 | 测试 | pytest + httpx | — | 接口单元测试 |
 | 服务器 | Uvicorn | — | ASGI 服务器 |
@@ -184,7 +184,7 @@ backend/
     │   ├── budget_service.py      # 预算计算与预警
     │   ├── account_service.py     # 账户余额管理
     │   ├── wechat_bill_service.py # CSV 解析、重复检测、批量导入
-    │   └── ai_service.py          # LLM 调用：智能分类 & 理财建议
+    │   └── ai_service.py          # LLM：导入自动分类 & 理财建议
     │
     ├── core/                      # 核心基础设施
     │   ├── __init__.py

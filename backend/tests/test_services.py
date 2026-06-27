@@ -2,7 +2,6 @@
 业务逻辑单元测试
 使用 Mock 隔离数据库和外部 API
 """
-import json
 from unittest.mock import patch, MagicMock
 from datetime import timedelta
 
@@ -116,115 +115,8 @@ class TestAIServiceRuleMatching:
         assert result is None
 
 
-class TestAIServiceClassifyWithMock:
-    """AI 服务 LLM 分类测试（Mock LLM 调用）"""
-
-    def setup_method(self):
-        self.service = AIService()
-
-    @patch.object(AIService, 'classify_by_llm')
-    @patch.object(AIService, '_find_category_by_name')
-    def test_classify_items_rule_match_only(self, mock_find_cat, mock_llm):
-        """所有项都通过规则匹配，不调用 LLM"""
-        mock_cat = MagicMock()
-        mock_cat.id = 1
-        mock_find_cat.return_value = mock_cat
-
-        items = [
-            {"merchant_name": "瑞幸咖啡", "amount": 15.0, "transaction_type": "expense"},
-            {"merchant_name": "滴滴出行", "amount": 25.0, "transaction_type": "expense"},
-        ]
-
-        db = MagicMock()
-        result = self.service.classify_items(db, 1, items)
-
-        assert result["total"] == 2
-        assert result["rule_matched_count"] == 2
-        assert result["llm_called_count"] == 0
-        mock_llm.assert_not_called()
-
-    @patch.object(AIService, 'classify_by_llm')
-    @patch.object(AIService, '_find_category_by_name')
-    def test_classify_items_llm_fallback(self, mock_find_cat, mock_llm):
-        """规则未匹配时调用 LLM"""
-        mock_cat = MagicMock()
-        mock_cat.id = 1
-        mock_find_cat.return_value = mock_cat
-        mock_llm.return_value = [
-            {"index": 0, "category_id": 5, "category_name": "其他", "confidence": 0.6}
-        ]
-
-        items = [
-            {"merchant_name": "未知商户", "amount": 100.0, "transaction_type": "expense"},
-        ]
-
-        db = MagicMock()
-        result = self.service.classify_items(db, 1, items)
-
-        assert result["total"] == 1
-        assert result["rule_matched_count"] == 0
-        assert result["llm_called_count"] == 1
-        mock_llm.assert_called_once()
-
-    @patch('app.services.ai_service.OpenAI')
-    def test_classify_by_llm_success(self, mock_openai_cls):
-        """LLM 分类成功"""
-        mock_client = MagicMock()
-        mock_openai_cls.return_value = mock_client
-
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = json.dumps({
-            "results": [
-                {"index": 0, "category_id": 1, "category_name": "餐饮", "confidence": 0.95}
-            ]
-        })
-        mock_client.chat.completions.create.return_value = mock_response
-
-        service = AIService()
-        service._client = mock_client
-
-        db = MagicMock()
-        mock_category = MagicMock()
-        mock_category.id = 1
-        mock_category.name = "餐饮"
-        mock_category.type = "expense"
-        mock_category.is_system = True
-
-        query_mock = MagicMock()
-        query_mock.filter.return_value.order_by.return_value.all.return_value = [mock_category]
-        query_mock.filter.return_value.first.return_value = mock_category
-        db.query.return_value = query_mock
-
-        result = service.classify_by_llm(db, 1, [
-            {"merchant_name": "某餐厅", "product_name": "午餐", "amount": 35, "transaction_type": "expense"}
-        ])
-
-        assert len(result) == 1
-        assert result[0]["category_name"] == "餐饮"
-
-    @patch('app.services.ai_service.OpenAI')
-    def test_classify_by_llm_failure_returns_default(self, mock_openai_cls):
-        """LLM 调用失败时返回默认分类"""
-        mock_client = MagicMock()
-        mock_openai_cls.return_value = mock_client
-        mock_client.chat.completions.create.side_effect = Exception("API Error")
-
-        service = AIService()
-        service._client = mock_client
-
-        db = MagicMock()
-        mock_other = MagicMock()
-        mock_other.id = 99
-        db.query.return_value.filter.return_value.first.return_value = mock_other
-
-        result = service.classify_by_llm(db, 1, [
-            {"merchant_name": "某店", "amount": 50, "transaction_type": "expense"}
-        ])
-
-        assert len(result) == 1
-        assert result[0]["category_name"] == "其他"
-        assert result[0]["confidence"] == 0.5
+class TestAIServiceAdvice:
+    """AI 服务理财建议测试"""
 
     @patch('app.services.ai_service.OpenAI')
     def test_generate_advice_no_transactions(self, mock_openai_cls):

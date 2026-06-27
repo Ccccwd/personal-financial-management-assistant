@@ -44,33 +44,15 @@
         <el-form-item>
           <el-button type="primary" @click="handleSearch">查询</el-button>
           <el-button @click="resetForm">重置</el-button>
-          <!-- 未分类快速过滤 -->
-          <el-button
-            :type="onlyUncategorized ? 'warning' : ''"
-            :plain="!onlyUncategorized"
-            @click="toggleUncategorized"
-          >
-            {{ onlyUncategorized ? '✓ 仅看未分类' : '仅看未分类' }}
-          </el-button>
         </el-form-item>
       </el-form>
-
-      <!-- 未分类提示横幅 -->
-      <el-alert
-        v-if="uncategorizedCount > 0"
-        :title="`当前页有 ${uncategorizedCount} 条未分类交易，点击条目中的「待分类」可快速设置`"
-        type="warning"
-        :closable="false"
-        show-icon
-        style="margin-top: 8px"
-      />
     </el-card>
 
     <!-- 列表区 -->
     <el-card class="list-card" shadow="never">
       <div v-loading="loading">
-        <div v-if="displayedGroups.length > 0">
-          <div v-for="(group, index) in displayedGroups" :key="index" class="day-group">
+        <div v-if="groupedTransactions.length > 0">
+          <div v-for="(group, index) in groupedTransactions" :key="index" class="day-group">
             <div class="day-header">
               <div class="day-info">
                 <span class="day-date">{{ group.date }}</span>
@@ -105,7 +87,7 @@
           </div>
         </div>
 
-        <el-empty v-else :description="onlyUncategorized ? '当前页没有未分类交易 🎉' : '暂无交易记录'" />
+        <el-empty v-else description="暂无交易记录" />
       </div>
 
       <div class="pagination-container" v-if="total > 0">
@@ -161,9 +143,6 @@
 
       <template #footer>
         <el-button @click="classifyVisible = false">取消</el-button>
-        <el-button plain :loading="aiReclassifying" @click="handleAIClassify">
-          AI 识别
-        </el-button>
         <el-button type="primary" :loading="classifying" :disabled="!selectedCategoryId" @click="submitClassify">
           保存
         </el-button>
@@ -175,18 +154,16 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import TransactionCard from '@/components/business/TransactionCard.vue'
 import { getTransactions, updateTransaction } from '@/api/transactions'
-import { useAIStore } from '@/stores/ai'
 import { ensureCategoriesLoaded } from '@/utils/category'
 import type { Category } from '@/types/category'
 import type { Transaction, TransactionQuery, TransactionListPayload } from '@/types/transaction'
 
 const router = useRouter()
-const aiStore = useAIStore()
 
 // ── 列表状态 ────────────────────────────────────────────
 const loading = ref(false)
@@ -194,7 +171,6 @@ const transactions = ref<Transaction[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
-const onlyUncategorized = ref(false)
 
 const form = reactive({
   type: '',
@@ -214,22 +190,6 @@ const groupedTransactions = computed(() => {
   })
   return Object.values(groups)
 })
-
-// 仅看未分类时对当前页做客户端过滤
-const displayedGroups = computed(() => {
-  if (!onlyUncategorized.value) return groupedTransactions.value
-  return groupedTransactions.value
-    .map(g => ({ ...g, items: g.items.filter(i => !i.category_id && i.type !== 'transfer') }))
-    .filter(g => g.items.length > 0)
-})
-
-const uncategorizedCount = computed(() =>
-  transactions.value.filter(t => !t.category_id && t.type !== 'transfer').length
-)
-
-const toggleUncategorized = () => {
-  onlyUncategorized.value = !onlyUncategorized.value
-}
 
 // ── 辅助 ────────────────────────────────────────────────
 const getDayOfWeek = (dateStr: string) => {
@@ -265,7 +225,7 @@ const fetchList = async () => {
 }
 
 const handleSearch  = () => { page.value = 1; fetchList() }
-const resetForm     = () => { form.type = ''; form.daterange = []; form.keyword = ''; onlyUncategorized.value = false; handleSearch() }
+const resetForm     = () => { form.type = ''; form.daterange = []; form.keyword = ''; handleSearch() }
 const handleSizeChange    = (v: number) => { pageSize.value = v; fetchList() }
 const handleCurrentChange = (v: number) => { page.value = v; fetchList() }
 const handleToAdd    = () => router.push('/transactions/add')
@@ -276,7 +236,6 @@ const classifyVisible   = ref(false)
 const classifyTarget    = ref<Transaction | null>(null)
 const selectedCategoryId = ref<number | null>(null)
 const classifying       = ref(false)
-const aiReclassifying   = ref(false)
 const loadingCategories = ref(false)
 const allCategories = ref<Category[]>([])
 
@@ -302,34 +261,6 @@ const openClassify = async (txn: Transaction) => {
   if (selectedCategoryId.value) {
     const matched = classifyCategories.value.some(c => c.id === selectedCategoryId.value)
     if (!matched) selectedCategoryId.value = null
-  }
-}
-
-const handleAIClassify = async () => {
-  if (!classifyTarget.value) return
-  const txn = classifyTarget.value
-  aiReclassifying.value = true
-  try {
-    const preview = await aiStore.reclassify(txn.id, true)
-    if (!preview?.category_id) return
-    const currentName = txn.category_name || '未分类'
-    if (preview.category_name === currentName) {
-      ElMessage.info('AI 推荐分类与当前一致')
-      return
-    }
-    await ElMessageBox.confirm(
-      `建议将分类从「${currentName}」改为「${preview.category_name}」，是否应用？`,
-      'AI 智能分类',
-      { confirmButtonText: '应用', cancelButtonText: '取消' }
-    )
-    await aiStore.reclassify(txn.id, false)
-    ElMessage.success('AI 分类已应用')
-    classifyVisible.value = false
-    await fetchList()
-  } catch {
-    // 取消或错误
-  } finally {
-    aiReclassifying.value = false
   }
 }
 

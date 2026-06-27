@@ -23,7 +23,7 @@
 | 缓存 / Token 存储 | Redis | 7.x | JWT 黑名单、统计缓存 |
 | 认证 | python-jose + passlib | — | JWT 生成验证、BCrypt 密码加密 |
 | Excel 导出 | openpyxl | ≥ 3.1 | 账单 Excel 报表生成 |
-| AI 大模型 | OpenAI SDK / DeepSeek API | — | 微信账单智能分类、理财建议生成 |
+| AI 大模型 | OpenAI SDK / DeepSeek API | — | 理财建议生成 |
 | 环境配置 | python-dotenv | — | 读取 `.env` 配置文件 |
 | 测试 | pytest + httpx | — | 接口单元测试 |
 | 服务器 | Uvicorn | — | ASGI 服务器 |
@@ -99,33 +99,21 @@
 
 ### 8. AI 智能服务模块（`services/ai_service.py`）
 
-接入大语言模型，提供两项核心 AI 能力。
+接入大语言模型：**微信账单导入后自动分类**（服务层内部）+ **个性化理财建议**（对外 API）。
 
-#### 8.1 账单智能分类
+#### 8.1 微信导入自动分类
 
-- 将微信账单行中的**商户名称**、**商品名称**、**微信原始分类**拼装为结构化 prompt，调用 LLM（DeepSeek-Chat / GPT-4o）返回系统分类名称。
-- 内置关键词规则作为前置过滤，命中规则的直接映射，降低 API 调用量。
-- LLM 返回结果经 Pydantic 校验后写入 `category_id`，无法识别时降级为"其他"。
-
-**Prompt 示例：**
-```
-你是一个个人财务分类助手。请根据以下消费信息，将其归类到指定分类之一。
-
-消费信息：
-- 商户名称：瑞幸咖啡
-- 商品描述：生椰拿铁
-- 微信原始分类：餐饮美食
-
-可选分类：餐饮、交通、娱乐、购物、学习、医疗、居住、通讯、社交、美容、运动、宠物、其他
-
-只需返回分类名称，不要附加任何解释。
-```
+- 在 `WechatBillService.import_transactions` 写入交易后，对未指定 `category_id` 的记录调用 `_auto_classify_imported`。
+- 规则匹配优先，未命中再调用 LLM，最后降级默认分类。
+- 不暴露独立的分类 HTTP 接口；前端导入页无「智能分类」按钮，分类在导入流程中静默完成。
 
 #### 8.2 个性化理财建议
 
 - 汇总用户近 1~3 个月的分类支出数据、预算执行情况、消费趋势作为上下文。
 - 调用 LLM 生成结构化分析报告，包含：消费亮点、超支警示、优化建议、下月预算参考。
 - 结果以 Markdown 格式返回，前端直接渲染展示。
+
+> 已移除：`POST /api/ai/classify`、`POST /api/ai/reclassify` 及交易页手动 AI 分类入口。
 
 ---
 
@@ -186,7 +174,7 @@ backend/
 │   │   ├── budget_service.py      # 预算计算与预警
 │   │   ├── account_service.py     # 账户余额管理
 │   │   ├── wechat_bill_service.py # CSV 解析、重复检测、批量导入
-│   │   └── ai_service.py          # LLM 调用：智能分类 & 理财建议
+│   │   └── ai_service.py          # LLM 调用：理财建议
 │   │
 │   ├── core/                      # 核心基础设施
 │   │   ├── __init__.py
@@ -284,8 +272,10 @@ accounts ── transactions      (一对多，account_id / to_account_id)
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/api/ai/classify` | 对单条或批量账单进行智能分类 |
 | GET | `/api/ai/advice` | 生成当月个性化理财建议报告 |
+| GET | `/api/ai/advice/history` | 历史建议列表 |
+| GET | `/api/ai/advice/history/{id}` | 建议详情 |
+| GET | `/api/ai/usage` | 用量统计 |
 
 ---
 

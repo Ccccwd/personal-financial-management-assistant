@@ -64,7 +64,7 @@ async def lifespan(app: FastAPI):
 # 创建 FastAPI 应用
 app = FastAPI(
     title="智能个人财务记账系统",
-    description="一个支持微信账单导入、智能分类、预算管理的个人财务记账系统",
+    description="一个支持微信账单导入（自动分类）、预算管理与 AI 理财建议的个人财务记账系统",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",

@@ -5,7 +5,6 @@ import {
   getAIAdviceHistory,
   getAIAdviceDetail,
   getAIUsage,
-  reclassifyTransaction
 } from '@/api/ai'
 import type {
   AIAdviceResponse,
@@ -13,7 +12,6 @@ import type {
   AIAdviceHistoryItem,
   AIAdviceDetail,
   AIUsage,
-  ReclassifyResponse
 } from '@/types/ai'
 
 /** 将历史详情接口的扁平结构规范为页面使用的 advice 结构 */
@@ -102,25 +100,10 @@ export const useAIStore = defineStore('ai', () => {
     }
   }
 
-  const reclassifyLoading = ref(false)
-
-  const reclassify = async (transactionId: number, dryRun: boolean = false) => {
-    reclassifyLoading.value = true
-    try {
-      const res = await reclassifyTransaction(transactionId, dryRun)
-      return res as unknown as ReclassifyResponse
-    } catch {
-      return null
-    } finally {
-      reclassifyLoading.value = false
-    }
-  }
-
   return {
     currentAdvice, adviceLoading, fetchAdvice,
     historyRecords, historyTotal, historyLoading, fetchHistory,
     historyDetail, historyDetailLoading, fetchHistoryDetail,
     usage, usageLoading, fetchUsage,
-    reclassifyLoading, reclassify
   }
 })
