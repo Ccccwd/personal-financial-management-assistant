@@ -1,6 +1,6 @@
 """
 AI 智能服务接口
-提供账单智能分类和理财建议生成功能
+提供理财建议生成功能
 """
 from datetime import datetime
 from typing import Optional
@@ -9,100 +9,13 @@ from sqlalchemy.orm import Session
 
 from app.config.database import get_db
 from app.schemas.common import Response
-from app.schemas.ai import (
-    ClassifyRequest
-)
 from app.models.user import User
-from app.models.transaction import Transaction
 from app.models.ai_advice_record import AIAdviceRecord
 from app.core.dependencies import get_current_active_user
 from app.services.ai_service import AIService, normalize_budget_suggestion
 
 router = APIRouter()
 ai_service = AIService()
-
-
-@router.post("/classify", response_model=Response)
-async def classify_transactions(
-    request: ClassifyRequest,
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
-    """
-    账单智能分类
-
-    接收一批交易记录，使用规则匹配和 LLM 进行智能分类。
-
-    - **items**: 待分类的交易列表，最多 100 条
-    - 返回每条交易的分类结果、置信度和匹配方式
-    """
-    items_data = [item.model_dump() for item in request.items]
-
-    try:
-        result = ai_service.classify_items(db, current_user.id, items_data)
-
-        return Response(
-            code=200,
-            message="success",
-            data={
-                "results": result["results"],
-                "total": result["total"],
-                "llm_called_count": result["llm_called_count"],
-                "rule_matched_count": result["rule_matched_count"]
-            }
-        )
-    except Exception:
-        return Response(
-            code=500,
-            message="AI服务暂时不可用",
-            data=None
-        )
-
-
-@router.post("/reclassify/{transaction_id}", response_model=Response)
-async def reclassify_transaction(
-    transaction_id: int,
-    dry_run: bool = Query(False, description="是否仅预览不修改"),
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
-    """
-    重新分类单条交易
-
-    对指定交易记录重新进行智能分类。
-
-    - **transaction_id**: 交易记录ID
-    - **dry_run**: 为 true 时仅预览结果，不实际修改；为 false 时更新交易记录
-    """
-    try:
-        result = ai_service.reclassify_transaction(db, current_user.id, transaction_id)
-
-        if result is None:
-            return Response(code=404, message="交易记录不存在", data=None)
-
-        if not dry_run:
-            # 更新交易记录
-            transaction = db.query(Transaction).filter(
-                Transaction.id == transaction_id,
-                Transaction.user_id == current_user.id
-            ).first()
-
-            if transaction:
-                transaction.category_id = result["category_id"]
-                transaction.ai_classified = True
-                db.commit()
-
-        return Response(
-            code=200,
-            message="success",
-            data=result
-        )
-    except Exception:
-        return Response(
-            code=500,
-            message="AI服务暂时不可用",
-            data=None
-        )
 
 
 @router.get("/advice", response_model=Response)

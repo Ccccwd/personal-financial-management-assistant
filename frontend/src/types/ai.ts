@@ -1,35 +1,3 @@
-export interface AIClassifyItem {
-  merchant_name: string
-  product_name?: string
-  wechat_category?: string
-  amount?: number
-  transaction_type?: 'income' | 'expense'
-}
-
-export interface AIClassifyResult {
-  index: number
-  merchant_name: string
-  category_id: number | null
-  category_name: string
-  confidence: number
-  matched_by: 'rule' | 'llm'
-}
-
-export interface AIClassifyResponse {
-  results: AIClassifyResult[]
-  total: number
-  llm_called_count: number
-  rule_matched_count: number
-}
-
-export interface ReclassifyResponse {
-  transaction_id: number
-  category_id: number | null
-  category_name: string
-  confidence: number
-  matched_by: 'rule' | 'llm'
-}
-
 export interface AIAdviceAnalysisPeriod {
   start: string
   end: string

@@ -1095,7 +1095,7 @@ POST /api/reports/monthly-auto-report
 
 ## 八、微信账单导入 `prefix: /api/wechat`
 
-支持 CSV 和 XLSX 双格式，提供解析预览、AI 智能分类、重复检测与批量导入功能。
+支持 CSV 和 XLSX 双格式，提供解析预览、重复检测、批量导入；导入成功后对未指定分类的记录**自动 AI 分类**（后端内部执行）。
 
 ### 8.1 预览账单文件
 
@@ -1167,7 +1167,6 @@ POST /api/wechat/import
 |------|------|------|------|------|
 | `file` | file | 是 | — | 账单文件（`.csv` 或 `.xlsx`） |
 | `skip_duplicates` | boolean | 否 | `true` | 是否跳过重复记录 |
-| `ai_classify` | boolean | 否 | `true` | 是否启用 AI 智能分类 |
 | `default_account_id` | integer | 否 | `null` | 导入时使用的默认账户 ID |
 
 **响应示例：**
@@ -1181,13 +1180,13 @@ POST /api/wechat/import
     "success_count": 115,
     "fail_count": 2,
     "duplicate_count": 3,
-    "ai_classified_count": 28,
+    "classified_count": 28,
     "total_count": 120
   }
 }
 ```
 
-> `ai_classified_count`：其中由 AI 模型完成分类的条目数量。
+> `classified_count`：本次导入中由后端自动完成 AI 分类的条数（仅当导入时未统一指定 `category_id`）。
 
 ---
 
@@ -1208,7 +1207,6 @@ POST /api/wechat/import-base64
   "file_content": "<base64_encoded_content>",
   "filename": "bill.csv",
   "skip_duplicates": true,
-  "ai_classify": true,
   "default_account_id": null
 }
 ```
@@ -1502,125 +1500,11 @@ GET /api/reminders/statistics
 
 ## 十一、AI 智能服务（新） `prefix: /api/ai`
 
-本模块调用大语言模型（DeepSeek-Chat / GPT-4o），提供两项核心 AI 能力：**账单智能分类** 与 **个性化理财建议生成**。
+本模块调用大语言模型（DeepSeek Chat），提供**微信导入自动分类（后端内部）**与**个性化理财建议**能力。对外 HTTP 接口仅暴露理财建议相关端点。
 
 ---
 
-### 11.1 账单智能分类
-
-对单条或批量账单条目进行语义分类，返回推荐的系统分类。内置规则库优先匹配，无法命中时调用 LLM。
-
-```
-POST /api/ai/classify
-```
-
-**需要认证：** 是
-
-**请求体：**
-
-```json
-{
-  "items": [
-    {
-      "merchant_name": "瑞幸咖啡",
-      "product_name": "生椰拿铁",
-      "wechat_category": "餐饮美食",
-      "amount": 15.90,
-      "transaction_type": "expense"
-    },
-    {
-      "merchant_name": "滴滴出行",
-      "product_name": "快车",
-      "wechat_category": "交通出行",
-      "amount": 23.00,
-      "transaction_type": "expense"
-    }
-  ]
-}
-```
-
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `items` | array | 是 | 待分类条目列表，最多 100 条 |
-| `items[].merchant_name` | string | 是 | 商户名称 |
-| `items[].product_name` | string | 否 | 商品/服务描述 |
-| `items[].wechat_category` | string | 否 | 微信原始分类标签（辅助判断） |
-| `items[].amount` | number | 否 | 金额（辅助判断） |
-| `items[].transaction_type` | string | 否 | `income` / `expense` |
-
-**响应示例：**
-
-```json
-{
-  "code": 200,
-  "data": {
-    "results": [
-      {
-        "index": 0,
-        "merchant_name": "瑞幸咖啡",
-        "category_id": 1,
-        "category_name": "餐饮",
-        "confidence": 0.97,
-        "matched_by": "rule"
-      },
-      {
-        "index": 1,
-        "merchant_name": "滴滴出行",
-        "category_id": 2,
-        "category_name": "交通",
-        "confidence": 0.95,
-        "matched_by": "llm"
-      }
-    ],
-    "total": 2,
-    "llm_called_count": 1,
-    "rule_matched_count": 1
-  }
-}
-```
-
-| 响应字段 | 说明 |
-|----------|------|
-| `confidence` | 置信度，0-1 |
-| `matched_by` | 匹配方式：`rule`（规则库）/ `llm`（大模型） |
-| `llm_called_count` | 本次实际调用 LLM 的条目数量 |
-
----
-
-### 11.2 重新分类单条交易
-
-对已导入的某条交易调用 AI 重新分类，可在用户觉得分类不准确时手动触发。
-
-```
-POST /api/ai/reclassify/{transaction_id}
-```
-
-**需要认证：** 是
-
-**Query 参数：**
-
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `dry_run` | boolean | 否 | `true` 时仅返回预览，不修改数据库，默认 `false` |
-
-**响应示例：**
-
-```json
-{
-  "code": 200,
-  "data": {
-    "transaction_id": 1234,
-    "old_category": { "id": 13, "name": "其他" },
-    "new_category": { "id": 1, "name": "餐饮" },
-    "confidence": 0.88,
-    "applied": true
-  }
-}
-```
-
----
-
-### 11.3 获取个性化理财建议
+### 11.1 获取个性化理财建议
 
 基于用户近期消费数据，由 AI 生成结构化理财分析报告，包含消费亮点、超支风险、优化建议和下月预算参考。同一天内重复请求默认复用缓存，不重复调用 LLM。
 
@@ -1690,7 +1574,7 @@ GET /api/ai/advice
 
 ---
 
-### 11.4 获取历史建议记录列表
+### 11.2 获取历史建议记录列表
 
 ```
 GET /api/ai/advice/history
@@ -1721,7 +1605,7 @@ GET /api/ai/advice/history
 
 ---
 
-### 11.5 获取历史建议详情
+### 11.3 获取历史建议详情
 
 ```
 GET /api/ai/advice/history/{record_id}
@@ -1729,11 +1613,11 @@ GET /api/ai/advice/history/{record_id}
 
 **需要认证：** 是
 
-返回完整的 `advice` 对象（结构同 12.3 响应）。
+返回完整的 `advice` 对象（结构同 11.1 响应）。
 
 ---
 
-### 11.6 获取 AI 服务用量统计
+### 11.4 获取 AI 服务用量统计
 
 返回当月 LLM API 调用次数及 Token 消耗，可用于前端展示剩余额度提示。
 
